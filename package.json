@@ -86,7 +86,7 @@
             },
             "even": {
               "backgroundColor": "rgba(40, 55, 75, 0.25)",
-              "borderColor": "rgba(100, 160, 255, 0.6)"
+              "borderColor": "rgba(180, 185, 200, 0.6)"
             }
           },
           "properties": {

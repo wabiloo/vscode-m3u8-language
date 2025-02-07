@@ -16,6 +16,7 @@ interface HLSTagInfo {
     section: string;
     url: string;
     summary: string;
+    context: 'header' | 'segment' | 'multivariant' | 'footer';
 }
 
 let decorationTypes: Map<string, vscode.TextEditorDecorationType> = new Map();
@@ -101,7 +102,25 @@ function updateDecorationTypes() {
     decorationTypes.set('even', createDecorationTypeFromScheme(config.defaultColors.even));
 }
 
+function isSegmentTag(tag: string, tagDefinitions: Record<string, HLSTagInfo>): boolean {
+    const tagInfo = tagDefinitions[tag];
+    return tagInfo ? tagInfo.context === 'segment' : true; // Unknown tags are treated as segment tags if they appear before a URI
+}
+
+function isHeaderOrMultivariantTag(tag: string, tagDefinitions: Record<string, HLSTagInfo>): boolean {
+    const tagInfo = tagDefinitions[tag];
+    return tagInfo ? (tagInfo.context === 'header' || tagInfo.context === 'multivariant') : false;
+}
+
+function extractTag(line: string): string | null {
+    const match = line.match(/^#((?:EXT-X-)?[A-Z-]+)(?::|$)/);
+    return match ? match[1] : null;
+}
+
 function registerFoldingProvider(context: vscode.ExtensionContext) {
+    // Load tag definitions
+    const tagDefinitions = loadHLSTagDefinitions(context);
+
     // Dispose of existing provider if it exists
     if (foldingProviderDisposable) {
         foldingProviderDisposable.dispose();
@@ -114,28 +133,44 @@ function registerFoldingProvider(context: vscode.ExtensionContext) {
             provideFoldingRanges(document: vscode.TextDocument): vscode.FoldingRange[] {
                 const ranges: vscode.FoldingRange[] = [];
                 let startLine: number | undefined;
+                let inHeader = true; // Track if we're still in the header section
 
                 for (let i = 0; i < document.lineCount; i++) {
                     const line = document.lineAt(i);
-                    const text = line.text;
+                    const text = line.text.trim();
 
                     // Skip empty lines and comments
-                    if (text.trim() === '' || text.startsWith('# ')) {
+                    if (text === '' || text.startsWith('# ')) {
                         continue;
                     }
 
-                    // Start of a segment
-                    if (text.startsWith('#') && !text.startsWith('# ')) {
-                        if (startLine === undefined) {
-                            startLine = i;
+                    if (text.startsWith('#')) {
+                        const tag = extractTag(text);
+                        if (tag) {
+                            if (isHeaderOrMultivariantTag(tag, tagDefinitions)) {
+                                // Reset any open segment range
+                                if (startLine !== undefined) {
+                                    if (i > startLine + 1) { // Only create range if we have at least 2 lines
+                                        ranges.push(new vscode.FoldingRange(startLine, i - 1));
+                                    }
+                                    startLine = undefined;
+                                }
+                                continue; // Skip header/multivariant tags for folding
+                            }
+
+                            if (isSegmentTag(tag, tagDefinitions)) {
+                                inHeader = false;
+                                if (startLine === undefined) {
+                                    startLine = i;
+                                }
+                            }
                         }
-                    }
-                    // End of a segment (non-tag line)
-                    else if (!text.startsWith('#')) {
+                    } else if (!text.startsWith('#')) {
+                        // Found a URI line
+                        inHeader = false;
                         if (startLine !== undefined) {
-                            // Create a folding range from first line to last line
-                            // The folding marker will be on the first line
-                            if (i > startLine) {  // Only create range if we have at least 2 lines
+                            // Create a folding range from first line to this line
+                            if (i > startLine) { // Only create range if we have at least 2 lines
                                 ranges.push(new vscode.FoldingRange(startLine, i));
                             }
                             startLine = undefined;
@@ -178,7 +213,7 @@ export function activate(context: vscode.ExtensionContext) {
                 updateDecorationTypes();
                 const editor = vscode.window.activeTextEditor;
                 if (editor) {
-                    updateDecorations(editor);
+                    updateDecorations(editor, context);
                 }
             }
         })
@@ -187,7 +222,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Update decorations when the active editor changes
     vscode.window.onDidChangeActiveTextEditor(editor => {
         if (editor) {
-            updateDecorations(editor);
+            updateDecorations(editor, context);
         }
     }, null, context.subscriptions);
 
@@ -195,13 +230,13 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidChangeTextDocument(event => {
         const editor = vscode.window.activeTextEditor;
         if (editor && event.document === editor.document) {
-            updateDecorations(editor);
+            updateDecorations(editor, context);
         }
     }, null, context.subscriptions);
 
     // Initial update for the active editor
     if (vscode.window.activeTextEditor) {
-        updateDecorations(vscode.window.activeTextEditor);
+        updateDecorations(vscode.window.activeTextEditor, context);
     }
 
     // Register hover provider
@@ -243,11 +278,14 @@ export function activate(context: vscode.ExtensionContext) {
     );
 }
 
-function updateDecorations(editor: vscode.TextEditor) {
+function updateDecorations(editor: vscode.TextEditor, context: vscode.ExtensionContext) {
     const document = editor.document;
     if (document.languageId !== 'm3u8') {
         return;
     }
+
+    // Load tag definitions
+    const tagDefinitions = loadHLSTagDefinitions(context);
 
     const config = getConfiguration();
     const decorationsMap = new Map<string, vscode.DecorationOptions[]>();
@@ -267,33 +305,61 @@ function updateDecorations(editor: vscode.TextEditor) {
 
     for (let i = 0; i < document.lineCount; i++) {
         const line = document.lineAt(i);
-        const text = line.text;
+        const text = line.text.trim();
 
         // Skip empty lines and comments
-        if (text.trim() === '' || text.startsWith('# ')) {
+        if (text === '' || text.startsWith('# ')) {
             continue;
         }
 
-        // Start of a new segment
-        if (text.startsWith('#') && !text.startsWith('# ')) {
-            if (!isInSegment) {
-                isInSegment = true;
-                segmentCount++;
-                currentSegmentDecorations = [];
-                currentSegmentTags = new Set();
+        if (text.startsWith('#')) {
+            const tag = extractTag(text);
+            if (tag) {
+                if (isHeaderOrMultivariantTag(tag, tagDefinitions)) {
+                    // Reset any open segment if we encounter a header/multivariant tag
+                    if (isInSegment) {
+                        // Add decorations to appropriate collection if color banding is enabled
+                        if (config.colorBanding) {
+                            // Find first matching tag that has a color scheme
+                            let matchingTag = Array.from(currentSegmentTags).find(tag => 
+                                config.tagColors.has(tag)
+                            );
+
+                            if (matchingTag) {
+                                decorationsMap.get(matchingTag)?.push(...currentSegmentDecorations);
+                            } else {
+                                // Use default alternating colors
+                                const key = segmentCount % 2 === 1 ? 'odd' : 'even';
+                                decorationsMap.get(key)?.push(...currentSegmentDecorations);
+                            }
+                        }
+                        isInSegment = false;
+                        currentSegmentDecorations = [];
+                        currentSegmentTags.clear();
+                    }
+                    continue;
+                }
+
+                if (isSegmentTag(tag, tagDefinitions)) {
+                    if (!isInSegment) {
+                        isInSegment = true;
+                        segmentCount++;
+                        currentSegmentDecorations = [];
+                        currentSegmentTags = new Set();
+                    }
+                    // Extract tag from line (everything after #EXT-X- until first : or end)
+                    const match = text.match(/#(?:EXT-X-)?([A-Z-]+)(?::|$)/);
+                    if (match) {
+                        currentSegmentTags.add(match[1]);
+                    }
+                    // Create decoration for this line
+                    const range = line.range;
+                    const decoration = { range };
+                    currentSegmentDecorations.push(decoration);
+                }
             }
-            // Extract tag from line (everything after #EXT-X- until first : or end)
-            const match = text.match(/#EXT-X-([A-Z-]+)(?::|$)/);
-            if (match) {
-                currentSegmentTags.add(match[1]);
-            }
-            // Create decoration for this line
-            const range = line.range;
-            const decoration = { range };
-            currentSegmentDecorations.push(decoration);
-        }
-        // Non-tag line within a segment
-        else if (!text.startsWith('#')) {
+        } else if (!text.startsWith('#')) {
+            // Found a URI line
             if (isInSegment) {
                 // Create decoration for this line with segment number
                 const range = line.range;
