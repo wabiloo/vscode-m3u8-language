@@ -4,6 +4,65 @@ let decorationType1: vscode.TextEditorDecorationType;
 let decorationType2: vscode.TextEditorDecorationType;
 let decorationTypeDiscontinuity: vscode.TextEditorDecorationType;
 let baseDecorationType: vscode.TextEditorDecorationType;
+let foldingProviderDisposable: vscode.Disposable | undefined;
+
+function getConfiguration() {
+    const config = vscode.workspace.getConfiguration('m3u8.features');
+    return {
+        colorBanding: config.get('colorBanding', true),
+        segmentNumbering: config.get('segmentNumbering', true),
+        folding: config.get('folding', true)
+    };
+}
+
+function registerFoldingProvider(context: vscode.ExtensionContext) {
+    // Dispose of existing provider if it exists
+    if (foldingProviderDisposable) {
+        foldingProviderDisposable.dispose();
+        foldingProviderDisposable = undefined;
+    }
+
+    // Only register if folding is enabled
+    if (getConfiguration().folding) {
+        foldingProviderDisposable = vscode.languages.registerFoldingRangeProvider('m3u8', {
+            provideFoldingRanges(document: vscode.TextDocument): vscode.FoldingRange[] {
+                const ranges: vscode.FoldingRange[] = [];
+                let startLine: number | undefined;
+
+                for (let i = 0; i < document.lineCount; i++) {
+                    const line = document.lineAt(i);
+                    const text = line.text;
+
+                    // Skip empty lines and comments
+                    if (text.trim() === '' || text.startsWith('# ')) {
+                        continue;
+                    }
+
+                    // Start of a segment
+                    if (text.startsWith('#') && !text.startsWith('# ')) {
+                        if (startLine === undefined) {
+                            startLine = i;
+                        }
+                    }
+                    // End of a segment (non-tag line)
+                    else if (!text.startsWith('#')) {
+                        if (startLine !== undefined) {
+                            // Create a folding range from first line to last line
+                            // The folding marker will be on the first line
+                            if (i > startLine) {  // Only create range if we have at least 2 lines
+                                ranges.push(new vscode.FoldingRange(startLine, i));
+                            }
+                            startLine = undefined;
+                        }
+                    }
+                }
+
+                return ranges;
+            }
+        });
+        context.subscriptions.push(foldingProviderDisposable);
+    }
+}
 
 export function activate(context: vscode.ExtensionContext) {
     // Create base decoration type for all lines
@@ -39,42 +98,20 @@ export function activate(context: vscode.ExtensionContext) {
         isWholeLine: true
     });
 
-    // Register the folding range provider
+    // Initial registration of folding provider
+    registerFoldingProvider(context);
+
+    // Listen for configuration changes
     context.subscriptions.push(
-        vscode.languages.registerFoldingRangeProvider('m3u8', {
-            provideFoldingRanges(document: vscode.TextDocument): vscode.FoldingRange[] {
-                const ranges: vscode.FoldingRange[] = [];
-                let startLine: number | undefined;
-
-                for (let i = 0; i < document.lineCount; i++) {
-                    const line = document.lineAt(i);
-                    const text = line.text;
-
-                    // Skip empty lines and comments
-                    if (text.trim() === '' || text.startsWith('# ')) {
-                        continue;
-                    }
-
-                    // Start of a segment
-                    if (text.startsWith('#') && !text.startsWith('# ')) {
-                        if (startLine === undefined) {
-                            startLine = i;
-                        }
-                    }
-                    // End of a segment (non-tag line)
-                    else if (!text.startsWith('#')) {
-                        if (startLine !== undefined) {
-                            // Create a folding range from first line to last line
-                            // The folding marker will be on the first line
-                            if (i > startLine) {  // Only create range if we have at least 2 lines
-                                ranges.push(new vscode.FoldingRange(startLine, i));
-                            }
-                            startLine = undefined;
-                        }
-                    }
+        vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('m3u8.features.folding')) {
+                registerFoldingProvider(context);
+            }
+            if (e.affectsConfiguration('m3u8.features')) {
+                const editor = vscode.window.activeTextEditor;
+                if (editor) {
+                    updateDecorations(editor);
                 }
-
-                return ranges;
             }
         })
     );
@@ -106,6 +143,7 @@ function updateDecorations(editor: vscode.TextEditor) {
         return;
     }
 
+    const config = getConfiguration();
     const decorations1: vscode.DecorationOptions[] = [];
     const decorations2: vscode.DecorationOptions[] = [];
     const decorationsDiscontinuity: vscode.DecorationOptions[] = [];
@@ -154,7 +192,7 @@ function updateDecorations(editor: vscode.TextEditor) {
                 const range = line.range;
                 const decoration = {
                     range,
-                    renderOptions: {
+                    renderOptions: config.segmentNumbering ? {
                         after: {
                             contentText: `#${segmentCount}`,
                             color: '#888',
@@ -163,17 +201,19 @@ function updateDecorations(editor: vscode.TextEditor) {
                             fontStyle: 'italic',
                             fontSize: '90%'
                         }
-                    }
+                    } : undefined
                 };
                 currentSegmentDecorations.push(decoration);
 
-                // Add all decorations for this segment to the appropriate array
-                if (hasDiscontinuity) {
-                    decorationsDiscontinuity.push(...currentSegmentDecorations);
-                } else if (segmentCount % 2 === 1) {
-                    decorations1.push(...currentSegmentDecorations);
-                } else {
-                    decorations2.push(...currentSegmentDecorations);
+                // Add all decorations for this segment to the appropriate array if color banding is enabled
+                if (config.colorBanding) {
+                    if (hasDiscontinuity) {
+                        decorationsDiscontinuity.push(...currentSegmentDecorations);
+                    } else if (segmentCount % 2 === 1) {
+                        decorations1.push(...currentSegmentDecorations);
+                    } else {
+                        decorations2.push(...currentSegmentDecorations);
+                    }
                 }
 
                 isInSegment = false;
@@ -183,9 +223,9 @@ function updateDecorations(editor: vscode.TextEditor) {
     }
 
     editor.setDecorations(baseDecorationType, baseDecorations);
-    editor.setDecorations(decorationType1, decorations1);
-    editor.setDecorations(decorationType2, decorations2);
-    editor.setDecorations(decorationTypeDiscontinuity, decorationsDiscontinuity);
+    editor.setDecorations(decorationType1, config.colorBanding ? decorations1 : []);
+    editor.setDecorations(decorationType2, config.colorBanding ? decorations2 : []);
+    editor.setDecorations(decorationTypeDiscontinuity, config.colorBanding ? decorationsDiscontinuity : []);
 }
 
 export function deactivate() {

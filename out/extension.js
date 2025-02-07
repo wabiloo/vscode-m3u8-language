@@ -7,6 +7,14 @@ let decorationType1;
 let decorationType2;
 let decorationTypeDiscontinuity;
 let baseDecorationType;
+function getConfiguration() {
+    const config = vscode.workspace.getConfiguration('m3u8.features');
+    return {
+        colorBanding: config.get('colorBanding', true),
+        segmentNumbering: config.get('segmentNumbering', true),
+        folding: config.get('folding', true)
+    };
+}
 function activate(context) {
     // Create base decoration type for all lines
     baseDecorationType = vscode.window.createTextEditorDecorationType({
@@ -37,39 +45,41 @@ function activate(context) {
         borderColor: 'rgba(255, 64, 150, 0.8)',
         isWholeLine: true
     });
-    // Register the folding range provider
-    context.subscriptions.push(vscode.languages.registerFoldingRangeProvider('m3u8', {
-        provideFoldingRanges(document) {
-            const ranges = [];
-            let startLine;
-            for (let i = 0; i < document.lineCount; i++) {
-                const line = document.lineAt(i);
-                const text = line.text;
-                // Skip empty lines and comments
-                if (text.trim() === '' || text.startsWith('# ')) {
-                    continue;
-                }
-                // Start of a segment
-                if (text.startsWith('#') && !text.startsWith('# ')) {
-                    if (startLine === undefined) {
-                        startLine = i;
+    // Register the folding range provider only if folding is enabled
+    if (getConfiguration().folding) {
+        context.subscriptions.push(vscode.languages.registerFoldingRangeProvider('m3u8', {
+            provideFoldingRanges(document) {
+                const ranges = [];
+                let startLine;
+                for (let i = 0; i < document.lineCount; i++) {
+                    const line = document.lineAt(i);
+                    const text = line.text;
+                    // Skip empty lines and comments
+                    if (text.trim() === '' || text.startsWith('# ')) {
+                        continue;
                     }
-                }
-                // End of a segment (non-tag line)
-                else if (!text.startsWith('#')) {
-                    if (startLine !== undefined) {
-                        // Create a folding range from first line to last line
-                        // The folding marker will be on the first line
-                        if (i > startLine) { // Only create range if we have at least 2 lines
-                            ranges.push(new vscode.FoldingRange(startLine, i));
+                    // Start of a segment
+                    if (text.startsWith('#') && !text.startsWith('# ')) {
+                        if (startLine === undefined) {
+                            startLine = i;
                         }
-                        startLine = undefined;
+                    }
+                    // End of a segment (non-tag line)
+                    else if (!text.startsWith('#')) {
+                        if (startLine !== undefined) {
+                            // Create a folding range from first line to last line
+                            // The folding marker will be on the first line
+                            if (i > startLine) { // Only create range if we have at least 2 lines
+                                ranges.push(new vscode.FoldingRange(startLine, i));
+                            }
+                            startLine = undefined;
+                        }
                     }
                 }
+                return ranges;
             }
-            return ranges;
-        }
-    }));
+        }));
+    }
     // Update decorations when the active editor changes
     vscode.window.onDidChangeActiveTextEditor(editor => {
         if (editor) {
@@ -93,6 +103,7 @@ function updateDecorations(editor) {
     if (document.languageId !== 'm3u8') {
         return;
     }
+    const config = getConfiguration();
     const decorations1 = [];
     const decorations2 = [];
     const decorationsDiscontinuity = [];
@@ -137,7 +148,7 @@ function updateDecorations(editor) {
                 const range = line.range;
                 const decoration = {
                     range,
-                    renderOptions: {
+                    renderOptions: config.segmentNumbering ? {
                         after: {
                             contentText: `#${segmentCount}`,
                             color: '#888',
@@ -146,18 +157,20 @@ function updateDecorations(editor) {
                             fontStyle: 'italic',
                             fontSize: '90%'
                         }
-                    }
+                    } : undefined
                 };
                 currentSegmentDecorations.push(decoration);
-                // Add all decorations for this segment to the appropriate array
-                if (hasDiscontinuity) {
-                    decorationsDiscontinuity.push(...currentSegmentDecorations);
-                }
-                else if (segmentCount % 2 === 1) {
-                    decorations1.push(...currentSegmentDecorations);
-                }
-                else {
-                    decorations2.push(...currentSegmentDecorations);
+                // Add all decorations for this segment to the appropriate array if color banding is enabled
+                if (config.colorBanding) {
+                    if (hasDiscontinuity) {
+                        decorationsDiscontinuity.push(...currentSegmentDecorations);
+                    }
+                    else if (segmentCount % 2 === 1) {
+                        decorations1.push(...currentSegmentDecorations);
+                    }
+                    else {
+                        decorations2.push(...currentSegmentDecorations);
+                    }
                 }
                 isInSegment = false;
                 currentSegmentDecorations = [];
@@ -165,9 +178,9 @@ function updateDecorations(editor) {
         }
     }
     editor.setDecorations(baseDecorationType, baseDecorations);
-    editor.setDecorations(decorationType1, decorations1);
-    editor.setDecorations(decorationType2, decorations2);
-    editor.setDecorations(decorationTypeDiscontinuity, decorationsDiscontinuity);
+    editor.setDecorations(decorationType1, config.colorBanding ? decorations1 : []);
+    editor.setDecorations(decorationType2, config.colorBanding ? decorations2 : []);
+    editor.setDecorations(decorationTypeDiscontinuity, config.colorBanding ? decorationsDiscontinuity : []);
 }
 function deactivate() {
     if (decorationType1) {

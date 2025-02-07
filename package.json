@@ -48,6 +48,26 @@
         "path": "./syntaxes/m3u8.tmLanguage.json"
       }
     ],
+    "configuration": {
+      "title": "M3U8 / HLS",
+      "properties": {
+        "m3u8.features.colorBanding": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable alternating color backgrounds to distinguish between consecutive segments"
+        },
+        "m3u8.features.segmentNumbering": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show variant / segment numbers after the URI"
+        },
+        "m3u8.features.folding": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable code folding for segments (requires VS Code window reload)"
+        }
+      }
+    },
     "configurationDefaults": {
       "[m3u8]": {
         "editor.padding.top": 8,
