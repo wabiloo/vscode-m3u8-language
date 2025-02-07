@@ -1,64 +1,62 @@
-# M3U8 / HLS Language Support for VS Code
+# M3U8 / HLS Language Support
 
-This extension adds language support for M3U8/HLS (HTTP Live Streaming) playlist files in Visual Studio Code.
+Visual Studio Code extension providing language support for M3U8 (HLS) files.
 
 ## Features
 
-- Syntax highlighting for M3U8/HLS playlist files
-- Support for both master playlists and media playlists
-- Highlights:
-  - HLS directives (e.g., `#EXTM3U`, `#EXT-X-VERSION`, etc.)
+- Syntax highlighting for:
+  - HLS tags
   - URIs and URLs
   - Attributes and their values
   - Numbers and durations
   - ISO8601 dates
   - Comments
   - Invalid attributes (as per the HLS specification)
+
+![Syntax Highlighting](images/syntax-highlighting.png)
+
 - Configurable decorations:
   - Folding support for segments and associated tags
   - Colour banding of segments for easier reading
     - Including specific colors for segments with chosen tags
   - Segment number decoration on each line
+
 - Documentation for HLS tags on hover, and links to the relevant sections of the HLS specification 
+
+![Tag Documentation](images/tag-documentation.png)
 
 ## Supported File Extensions
 
 - `.m3u8`
 - `.m3u`
 
-## Example
+## Extension Settings
 
-The extension provides syntax highlighting for M3U8 files like this, whether multi-variant or variant playlists:
+This extension contributes the following settings:
 
-```m3u8
-#EXTM3U
-#EXT-X-VERSION:3
-#EXT-X-STREAM-INF:BANDWIDTH=1280000,RESOLUTION=720x480
-http://example.com/video_720p.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=2560000,RESOLUTION=1280x720
-http://example.com/video_1080p.m3u8
-```
+* `m3u8.features.colorBanding`: Enable/disable alternating color backgrounds to distinguish between consecutive segments
+* `m3u8.features.segmentNumbering`: Enable/disable showing segment numbers after the URI
+* `m3u8.features.folding`: Enable/disable code folding for segments (requires VS Code window reload)
+* `m3u8.features.tagColors`: List of tag colors in format 'TAG,borderColor,backgroundColor'
+* `m3u8.features.defaultColors`: Default colors for alternating segments when no tag-specific colors match
 
-## Installation
+![Settings](images/settings.png)
 
-1. Open VS Code
-2. Press `Ctrl+P` (or `Cmd+P` on macOS)
-3. Type `ext install m3u8-hls-vscode`
-4. Press Enter
+## Examples
 
-## Development
+The extension includes example files in the `examples` directory demonstrating various HLS playlist features:
 
-To build and test the extension locally:
-
-1. Clone the repository
-2. Run `npm install`
-3. Open the project in VS Code
-4. Press F5 to launch the extension in debug mode
+- Basic Media Playlist
+- Multivariant Playlist
+- Encrypted Media
+- Discontinuities
+- Alternative Renditions
+- And more...
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Found a bug or have a feature request? Please open an issue on [GitHub](https://github.com/wabiloo/vscode-m3u8-language).
 
 ## License
 
-This extension is licensed under the MIT License.
+This extension is licensed under the [MIT License](LICENSE).
