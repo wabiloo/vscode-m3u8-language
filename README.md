@@ -5,11 +5,9 @@ Visual Studio Code extension providing language support for M3U8 (HLS) files.
 ## Features
 
 - Syntax highlighting for:
-  - HLS tags
+  - HLS tags, attributes and their values
   - URIs and URLs
-  - Attributes and their values
-  - Numbers and durations
-  - ISO8601 dates
+  - Numbers and durations, date, strings
   - Comments
   - Invalid attributes (as per the HLS specification)
 
@@ -19,7 +17,7 @@ Visual Studio Code extension providing language support for M3U8 (HLS) files.
   - Folding support for segments and associated tags
   - Colour banding of segments for easier reading
     - Including specific colors for segments with chosen tags
-  - Segment number decoration on each line
+  - Segment number decoration on each line, with running duration and (where applicable) program date time
   - Gutter icons for specific tags (in multivariant playlists and for cues and signals)
 - Documentation for HLS tags on hover, and links to the relevant sections of the HLS specification 
 

@@ -1,5 +1,8 @@
 # Change Log
 
+## [1.2.0] - 2025-02-07
+- Running duration and program date time decoration in variant playlists
+
 ## [1.1.0] - 2025-02-07
 
 - Folding support for segments and associated tags

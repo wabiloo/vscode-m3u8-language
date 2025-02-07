@@ -50,6 +50,8 @@ function getConfiguration() {
     return {
         colorBanding: config.get('colorBanding', true),
         segmentNumbering: config.get('segmentNumbering', true),
+        showRunningDuration: config.get('showRunningDuration', true),
+        showProgramDateTime: config.get('showProgramDateTime', true),
         folding: config.get('folding', true),
         gutterIcons: config.get('gutterIcons', true),
         tagColors,
@@ -365,6 +367,12 @@ function updateDecorations(editor, context) {
     let segmentCount = 0;
     let currentSegmentDecorations = [];
     let currentSegmentTags = new Set();
+    // Track running duration and program date time
+    let runningDuration = 0;
+    let currentSegmentDuration = 0;
+    let lastPDT = null; // Last PDT (explicit or calculated)
+    let currentExplicitPDT = null; // Explicit PDT for current segment
+    let lastSegmentDuration = 0; // Duration of the last segment
     // Add base decoration for every line
     for (let i = 0; i < document.lineCount; i++) {
         const line = document.lineAt(i);
@@ -395,6 +403,20 @@ function updateDecorations(editor, context) {
             }
             else if (text.startsWith('#EXT-X-I-FRAME-STREAM-INF:')) {
                 iFrameStreamInfDecorations.push({ range: line.range });
+            }
+            else if (text.startsWith('#EXTINF:')) {
+                // Extract duration from EXTINF tag
+                const durationMatch = text.match(/#EXTINF:([0-9.]+)/);
+                if (durationMatch) {
+                    currentSegmentDuration = parseFloat(durationMatch[1]);
+                }
+            }
+            else if (text.startsWith('#EXT-X-PROGRAM-DATE-TIME:')) {
+                // Extract program date time for current segment
+                const pdtMatch = text.match(/#EXT-X-PROGRAM-DATE-TIME:(.+)/);
+                if (pdtMatch) {
+                    currentExplicitPDT = parseDateTime(pdtMatch[1]);
+                }
             }
             // Handle JSON-defined icons and special cases
             const iconType = getIconForTag(text, tagDefinitions);
@@ -450,22 +472,41 @@ function updateDecorations(editor, context) {
         else if (!text.startsWith('#')) {
             // Found a URI line
             if (isInSegment) {
-                // Create decoration for this line with segment number
+                // Determine PDT for this segment
+                let segmentPDT = null;
+                if (currentExplicitPDT) {
+                    // Use explicit PDT if available
+                    segmentPDT = currentExplicitPDT;
+                    lastPDT = currentExplicitPDT;
+                }
+                else if (lastPDT) {
+                    // Calculate PDT based on last PDT and last segment duration
+                    segmentPDT = new Date(lastPDT.getTime() + lastSegmentDuration * 1000);
+                    lastPDT = segmentPDT;
+                }
+                // Create decoration for this line with segment number and timing information
                 const range = line.range;
                 const decoration = {
                     range,
-                    renderOptions: config.segmentNumbering ? {
+                    renderOptions: {
                         after: {
-                            contentText: `#${segmentCount}`,
+                            contentText: [
+                                config.segmentNumbering ? `#${segmentCount}` : '',
+                                config.showRunningDuration ? `Σ ${formatDuration(runningDuration)}` : '',
+                                (config.showProgramDateTime && segmentPDT) ? `⏲ ${formatDateTime(segmentPDT)}` : ''
+                            ].filter(Boolean).join(' | '),
                             color: '#888',
                             margin: '0 3em',
                             backgroundColor: 'transparent',
                             fontStyle: 'italic',
                             fontSize: '90%'
                         }
-                    } : undefined
+                    }
                 };
                 currentSegmentDecorations.push(decoration);
+                // Update running duration and store current duration for next segment's PDT calculation
+                runningDuration += currentSegmentDuration;
+                lastSegmentDuration = currentSegmentDuration;
                 // Add decorations to appropriate collection if color banding is enabled
                 if (config.colorBanding) {
                     // Find first matching tag that has a color scheme
@@ -482,6 +523,8 @@ function updateDecorations(editor, context) {
                 isInSegment = false;
                 currentSegmentDecorations = [];
                 currentSegmentTags.clear();
+                currentSegmentDuration = 0;
+                currentExplicitPDT = null; // Reset explicit PDT for next segment
             }
         }
     }
@@ -532,5 +575,23 @@ function deactivate() {
     cueDecorationType?.dispose();
     tagIconDecorationTypes.forEach(type => type.dispose());
     tagIconDecorationTypes.clear();
+}
+function formatDuration(durationInSeconds) {
+    const hours = Math.floor(durationInSeconds / 3600);
+    const minutes = Math.floor((durationInSeconds % 3600) / 60);
+    const seconds = Math.floor(durationInSeconds % 60);
+    const milliseconds = Math.floor((durationInSeconds % 1) * 1000);
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`;
+}
+function parseDateTime(dateTimeStr) {
+    try {
+        return new Date(dateTimeStr);
+    }
+    catch {
+        return null;
+    }
+}
+function formatDateTime(date) {
+    return date.toISOString().replace('T', ' ').replace('Z', '');
 }
 //# sourceMappingURL=extension.js.map
