@@ -1,0 +1,33 @@
+#EXTM3U
+# This is a comment
+#EXT-X-VERSION:3
+
+# Test boolean attributes
+#EXT-X-INDEPENDENT-SEGMENTS
+#EXT-X-MEDIA:TYPE=AUDIO,DEFAULT=YES,AUTOSELECT=NO,NAME="English"
+
+# Test quoted strings
+#EXT-X-STREAM-INF:CODECS="avc1.42001e,mp4a.40.2",RESOLUTION=1920x1080
+
+# Test numbers
+#EXT-X-TARGETDURATION:10
+#EXTINF:9.5,
+
+# Test URLs
+# ... absolute path
+http://example.com/video/segment1.ts
+# ... relative path
+segment2.ts
+
+# Test dates
+#EXT-X-PROGRAM-DATE-TIME:2024-02-07T05:20:00.000Z
+
+# Test complex attributes
+#EXT-X-KEY:METHOD=AES-128,URI="https://example.com/key.bin",IV=0x1234567890abcdef
+
+# Test multiple boolean and unquoted values
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="English",DEFAULT=YES,AUTOSELECT=YES,LANGUAGE="en",URI="audio_en.m3u8" 
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="English",LANGUAGE="en",URI="audio_en.m3u8",DEFAULT=YES
+
+# Test illegal attributes (as per Pantos spec)
+#EXT-X-CUE-OUT:duration=5.18468,signalID=0x0C:0x7B2261223,availType=48

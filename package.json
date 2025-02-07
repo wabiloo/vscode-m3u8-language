@@ -1,0 +1,68 @@
+{
+  "name": "m3u8-hls-vscode",
+  "displayName": "M3U8 / HLS Language Support",
+  "description": "Language support for M3U8 (HLS) files with syntax highlighting",
+  "version": "1.1.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "publisher": "wabiloo",
+  "icon": "images/icon.png",
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "m3u8",
+    "m3u",
+    "hls",
+    "http live streaming",
+    "playlist",
+    "manifest"
+  ],
+  "main": "./out/extension.js",
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "m3u8",
+        "aliases": [
+          "M3U8 / HLS",
+          "m3u8"
+        ],
+        "extensions": [
+          ".m3u8",
+          ".m3u"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "m3u8",
+        "scopeName": "source.m3u8",
+        "path": "./syntaxes/m3u8.tmLanguage.json"
+      }
+    ],
+    "configurationDefaults": {
+      "[m3u8]": {
+        "editor.padding.top": 8,
+        "editor.padding.bottom": 8,
+        "editor.lineHeight": 1.6
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wabiloo/vscode-m3u8-language"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.3"
+  }
+}

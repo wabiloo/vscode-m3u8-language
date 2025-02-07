@@ -1,0 +1,96 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "M3U8 / HLS",
+	"scopeName": "source.m3u8",
+	"patterns": [
+		{
+			"match": "^#[A-Z0-9-]+:?",
+			"name": "entity.name.tag.m3u8"
+		},
+		{
+			"match": "#+ .*",
+			"name": "comment.line.m3u8"
+		},
+		{
+			"match": "^[^#][^\\s,]+",
+			"name": "variable.other.m3u8"
+		},
+		{
+			"match": ",",
+			"name": "punctuation.separator.delimiter.m3u8"
+		},
+		{
+			"match": "([A-Za-z0-9-]*[a-z]+[A-Za-z0-9-]*=)([^,]+)",
+			"captures": {
+				"1": {
+					"name": "invalid.illegal.attribute-name.m3u8"
+				},
+				"2": {
+					"name": "string.unquoted.m3u8"
+				}
+			}
+		},
+		{
+			"match": "([A-Z0-9-]+=)(YES|NO)(?=$|,)",
+			"captures": {
+				"1": {
+					"name": "support.type.m3u8"
+				},
+				"2": {
+					"name": "keyword.other.m3u8"
+				}
+			}
+		},
+		{
+			"match": "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z?",
+			"name": "constant.other.date.m3u8"
+		},
+		{
+			"match": "\\d+\\.\\d+(?=$|,)",
+			"name": "constant.numeric.float.m3u8"
+		},
+		{
+			"match": "\\d+(?=$|,)",
+			"name": "constant.numeric.integer.m3u8"
+		},
+		{
+			"match": "(URI=)(\"?)([^,\"]+)(\"?)",
+			"captures": {
+				"1": {
+					"name": "support.type.m3u8"
+				},
+				"2": {
+					"name": "string.quoted.double.m3u8"
+				},
+				"3": {
+					"name": "variable.other.m3u8"
+				},
+				"4": {
+					"name": "string.quoted.double.m3u8"
+				}
+			}
+		},
+		{
+			"match": "([A-Z0-9-]+=)(\"[^\"]*\")",
+			"captures": {
+				"1": {
+					"name": "support.type.m3u8"
+				},
+				"2": {
+					"name": "string.quoted.double.m3u8"
+				}
+			}
+		},
+		{
+			"match": "([A-Z0-9-]+=)([^,\"]+)",
+			"captures": {
+				"1": {
+					"name": "support.type.m3u8"
+				},
+				"2": {
+					"name": "string.unquoted.m3u8"
+				}
+			}
+		}
+	]
+}
