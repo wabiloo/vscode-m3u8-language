@@ -20,7 +20,7 @@ Visual Studio Code extension providing language support for M3U8 (HLS) files.
   - Colour banding of segments for easier reading
     - Including specific colors for segments with chosen tags
   - Segment number decoration on each line
-
+  - Gutter icons in multivariant playlists
 - Documentation for HLS tags on hover, and links to the relevant sections of the HLS specification 
 
 ![Tag Documentation](images/tag-documentation.png)
@@ -34,11 +34,29 @@ Visual Studio Code extension providing language support for M3U8 (HLS) files.
 
 This extension contributes the following settings:
 
-* `m3u8.features.colorBanding`: Enable/disable alternating color backgrounds to distinguish between consecutive segments
-* `m3u8.features.segmentNumbering`: Enable/disable showing segment numbers after the URI
-* `m3u8.features.folding`: Enable/disable code folding for segments (requires VS Code window reload)
-* `m3u8.features.tagColors`: List of tag colors in format 'TAG,borderColor,backgroundColor'
-* `m3u8.features.defaultColors`: Default colors for alternating segments when no tag-specific colors match
+* `m3u8.features.colorBanding`: Enable color banding of segments for easier reading (default: `true`)
+* `m3u8.features.segmentNumbering`: Show segment numbers in the right margin (default: `true`)
+* `m3u8.features.folding`: Enable folding support for segments and associated tags (default: `true`)
+* `m3u8.features.gutterIcons`: Show gutter icons for playlist pointers in multivariant playlists (default: `true`)
+* `m3u8.features.tagColors`: List of tag colors in format `"TAG,borderColor,backgroundColor"` (default: `[]`)
+* `m3u8.features.defaultColors`: Default colors for odd/even segments when no tag colors match (see below)
+
+### Default Colors
+
+The `m3u8.features.defaultColors` setting allows you to customize the colors used for alternating segments when no tag colors match. The default values are:
+
+```json
+{
+    "odd": {
+        "backgroundColor": "rgba(25, 35, 50, 0.35)",
+        "borderColor": "rgba(50, 120, 220, 0.8)"
+    },
+    "even": {
+        "backgroundColor": "rgba(40, 55, 75, 0.25)",
+        "borderColor": "rgba(100, 160, 255, 0.6)"
+    }
+}
+```
 
 ![Settings](images/settings.png)
 

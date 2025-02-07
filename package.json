@@ -64,7 +64,12 @@
         "m3u8.features.folding": {
           "type": "boolean",
           "default": true,
-          "description": "Enable code folding for segments (requires VS Code window reload)"
+          "description": "Enable folding support for segments and associated tags"
+        },
+        "m3u8.features.gutterIcons": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show gutter icons for playlist pointers in multivariant playlists (STREAM-INF, MEDIA, I-FRAME-STREAM-INF)"
         },
         "m3u8.features.tagColors": {
           "type": "array",

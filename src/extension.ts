@@ -22,6 +22,11 @@ interface HLSTagInfo {
 let decorationTypes: Map<string, vscode.TextEditorDecorationType> = new Map();
 let baseDecorationType: vscode.TextEditorDecorationType;
 let foldingProviderDisposable: vscode.Disposable | undefined;
+let streamInfDecorationType: vscode.TextEditorDecorationType;
+let mediaDecorationType: vscode.TextEditorDecorationType;
+let iFrameStreamInfDecorationType: vscode.TextEditorDecorationType;
+let audioMediaDecorationType: vscode.TextEditorDecorationType;
+let subtitleMediaDecorationType: vscode.TextEditorDecorationType;
 
 // Load HLS tag definitions from JSON file
 function loadHLSTagDefinitions(context: vscode.ExtensionContext): Record<string, HLSTagInfo> {
@@ -61,6 +66,7 @@ function getConfiguration() {
         colorBanding: config.get('colorBanding', true),
         segmentNumbering: config.get('segmentNumbering', true),
         folding: config.get('folding', true),
+        gutterIcons: config.get('gutterIcons', true),
         tagColors,
         defaultColors: config.get<DefaultColors>('defaultColors', {
             odd: {
@@ -189,6 +195,8 @@ export function activate(context: vscode.ExtensionContext) {
     // Load tag definitions
     const HLS_TAG_SPEC_MAPPING = loadHLSTagDefinitions(context);
 
+    console.log('M3U8 extension activating...');
+
     // Create base decoration type for all lines
     baseDecorationType = vscode.window.createTextEditorDecorationType({
         before: {
@@ -197,8 +205,70 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
+    // Create decoration types for playlist pointers with absolute paths
+    const streamIconPath = path.join(context.extensionPath, 'images', 'stream.svg');
+    const audioIconPath = path.join(context.extensionPath, 'images', 'audio.svg');
+    const subtitleIconPath = path.join(context.extensionPath, 'images', 'subtitle.svg');
+    const iframeIconPath = path.join(context.extensionPath, 'images', 'iframe.svg');
+
+    console.log('Extension path:', context.extensionPath);
+    console.log('Icon paths:', {
+        stream: streamIconPath,
+        audio: audioIconPath,
+        subtitle: subtitleIconPath,
+        iframe: iframeIconPath
+    });
+
+    try {
+        // Verify files exist
+        const filesExist = {
+            stream: fs.existsSync(streamIconPath),
+            audio: fs.existsSync(audioIconPath),
+            subtitle: fs.existsSync(subtitleIconPath),
+            iframe: fs.existsSync(iframeIconPath)
+        };
+        console.log('Icons exist:', filesExist);
+
+        if (!filesExist.stream || !filesExist.audio || !filesExist.subtitle || !filesExist.iframe) {
+            console.error('Some icon files are missing!');
+        }
+
+        // Try to read the files to verify content
+        const streamContent = fs.readFileSync(streamIconPath, 'utf8');
+        console.log('Stream icon content length:', streamContent.length);
+    } catch (error) {
+        console.error('Error checking icon files:', error);
+    }
+
+    streamInfDecorationType = vscode.window.createTextEditorDecorationType({
+        gutterIconPath: vscode.Uri.file(streamIconPath)
+    });
+
+    audioMediaDecorationType = vscode.window.createTextEditorDecorationType({
+        gutterIconPath: vscode.Uri.file(audioIconPath)
+    });
+
+    subtitleMediaDecorationType = vscode.window.createTextEditorDecorationType({
+        gutterIconPath: vscode.Uri.file(subtitleIconPath)
+    });
+
+    iFrameStreamInfDecorationType = vscode.window.createTextEditorDecorationType({
+        gutterIconPath: vscode.Uri.file(iframeIconPath)
+    });
+
     // Initialize decoration types
     updateDecorationTypes();
+
+    // Register a command to force update decorations
+    let disposable = vscode.commands.registerCommand('m3u8.refreshDecorations', () => {
+        console.log('Manually refreshing decorations...');
+        const editor = vscode.window.activeTextEditor;
+        if (editor) {
+            updateDecorations(editor, context);
+        }
+    });
+
+    context.subscriptions.push(disposable);
 
     // Initial registration of folding provider
     registerFoldingProvider(context);
@@ -233,6 +303,14 @@ export function activate(context: vscode.ExtensionContext) {
             updateDecorations(editor, context);
         }
     }, null, context.subscriptions);
+
+    // Register disposables
+    context.subscriptions.push(
+        streamInfDecorationType,
+        audioMediaDecorationType,
+        subtitleMediaDecorationType,
+        iFrameStreamInfDecorationType
+    );
 
     // Initial update for the active editor
     if (vscode.window.activeTextEditor) {
@@ -292,6 +370,11 @@ function updateDecorations(editor: vscode.TextEditor, context: vscode.ExtensionC
     decorationTypes.forEach((_, key) => decorationsMap.set(key, []));
 
     const baseDecorations: vscode.DecorationOptions[] = [];
+    const streamInfDecorations: vscode.DecorationOptions[] = [];
+    const audioMediaDecorations: vscode.DecorationOptions[] = [];
+    const subtitleMediaDecorations: vscode.DecorationOptions[] = [];
+    const iFrameStreamInfDecorations: vscode.DecorationOptions[] = [];
+
     let isInSegment = false;
     let segmentCount = 0;
     let currentSegmentDecorations: vscode.DecorationOptions[] = [];
@@ -337,7 +420,6 @@ function updateDecorations(editor: vscode.TextEditor, context: vscode.ExtensionC
                         currentSegmentDecorations = [];
                         currentSegmentTags.clear();
                     }
-                    continue;
                 }
 
                 if (isSegmentTag(tag, tagDefinitions)) {
@@ -357,6 +439,24 @@ function updateDecorations(editor: vscode.TextEditor, context: vscode.ExtensionC
                     const decoration = { range };
                     currentSegmentDecorations.push(decoration);
                 }
+            }
+
+            // Check for gutter icon tags
+            if (text.startsWith('#EXT-X-STREAM-INF:')) {
+                streamInfDecorations.push({ range: line.range });
+            } else if (text.startsWith('#EXT-X-MEDIA:')) {
+                // Parse the MEDIA type
+                const typeMatch = text.match(/TYPE=([A-Z]+)/);
+                if (typeMatch) {
+                    const mediaType = typeMatch[1];
+                    if (mediaType === 'AUDIO') {
+                        audioMediaDecorations.push({ range: line.range });
+                    } else if (mediaType === 'SUBTITLES') {
+                        subtitleMediaDecorations.push({ range: line.range });
+                    }
+                }
+            } else if (text.startsWith('#EXT-X-I-FRAME-STREAM-INF:')) {
+                iFrameStreamInfDecorations.push({ range: line.range });
             }
         } else if (!text.startsWith('#')) {
             // Found a URI line
@@ -401,10 +501,25 @@ function updateDecorations(editor: vscode.TextEditor, context: vscode.ExtensionC
         }
     }
 
+    // Apply all decorations
     editor.setDecorations(baseDecorationType, baseDecorations);
     decorationTypes.forEach((type, key) => {
         editor.setDecorations(type, config.colorBanding ? (decorationsMap.get(key) || []) : []);
     });
+
+    // Apply gutter icons
+    if (config.gutterIcons) {
+        editor.setDecorations(streamInfDecorationType, streamInfDecorations);
+        editor.setDecorations(audioMediaDecorationType, audioMediaDecorations);
+        editor.setDecorations(subtitleMediaDecorationType, subtitleMediaDecorations);
+        editor.setDecorations(iFrameStreamInfDecorationType, iFrameStreamInfDecorations);
+    } else {
+        // Clear any existing gutter icons
+        editor.setDecorations(streamInfDecorationType, []);
+        editor.setDecorations(audioMediaDecorationType, []);
+        editor.setDecorations(subtitleMediaDecorationType, []);
+        editor.setDecorations(iFrameStreamInfDecorationType, []);
+    }
 }
 
 export function deactivate() {
@@ -413,4 +528,8 @@ export function deactivate() {
     if (baseDecorationType) {
         baseDecorationType.dispose();
     }
+    streamInfDecorationType?.dispose();
+    audioMediaDecorationType?.dispose();
+    subtitleMediaDecorationType?.dispose();
+    iFrameStreamInfDecorationType?.dispose();
 } 
