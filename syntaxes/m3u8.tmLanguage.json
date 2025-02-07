@@ -12,6 +12,17 @@
 			"name": "entity.name.tag.custom.m3u8"
 		},
 		{
+			"match": "^(#[A-Z0-9-]+:)([A-Za-z0-9+/]+=*|/[A-Za-z0-9+/]+=*)",
+			"captures": {
+				"1": {
+					"name": "entity.name.tag.custom.m3u8"
+				},
+				"2": {
+					"name": "constant.other.base64.m3u8"
+				}
+			}
+		},
+		{
 			"match": "#+ .*",
 			"name": "comment.line.m3u8"
 		},
@@ -22,6 +33,28 @@
 		{
 			"match": ",",
 			"name": "punctuation.separator.delimiter.m3u8"
+		},
+		{
+			"match": "([A-Za-z0-9-]*[a-z]+[A-Za-z0-9-]*=)(0x[0-9A-Fa-f:]+)(?=$|,)",
+			"captures": {
+				"1": {
+					"name": "invalid.illegal.attribute-name.m3u8"
+				},
+				"2": {
+					"name": "constant.numeric.hex.m3u8"
+				}
+			}
+		},
+		{
+			"match": "([A-Za-z0-9-]*[a-z]+[A-Za-z0-9-]*=)(\\d+(?:\\.\\d+)?)(?=$|,)",
+			"captures": {
+				"1": {
+					"name": "invalid.illegal.attribute-name.m3u8"
+				},
+				"2": {
+					"name": "constant.numeric.float.m3u8"
+				}
+			}
 		},
 		{
 			"match": "([A-Za-z0-9-]*[a-z]+[A-Za-z0-9-]*=)([^,]+)",
@@ -46,8 +79,30 @@
 			}
 		},
 		{
+			"match": "([A-Z0-9-]+=)(0x[0-9A-Fa-f:]+)(?=$|,)",
+			"captures": {
+				"1": {
+					"name": "support.type.m3u8"
+				},
+				"2": {
+					"name": "constant.numeric.hex.m3u8"
+				}
+			}
+		},
+		{
+			"match": "([A-Z0-9-]+=)(\\d+(?:\\.\\d+)?)(?=$|,)",
+			"captures": {
+				"1": {
+					"name": "support.type.m3u8"
+				},
+				"2": {
+					"name": "constant.numeric.float.m3u8"
+				}
+			}
+		},
+		{
 			"match": "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z?",
-			"name": "constant.other.date.m3u8"
+			"name": "constant.numeric.date"
 		},
 		{
 			"match": "\\d+\\.\\d+(?=$|,)",
