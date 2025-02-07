@@ -2,10 +2,18 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.activate = activate;
 exports.deactivate = deactivate;
+const fs = require("fs");
+const path = require("path");
 const vscode = require("vscode");
 let decorationTypes = new Map();
 let baseDecorationType;
 let foldingProviderDisposable;
+// Load HLS tag definitions from JSON file
+function loadHLSTagDefinitions(context) {
+    const jsonPath = path.join(context.extensionPath, 'hls-tags.json');
+    const jsonContent = fs.readFileSync(jsonPath, 'utf8');
+    return JSON.parse(jsonContent);
+}
 function parseTagColor(tagColor) {
     const parts = tagColor.split(',');
     if (parts.length === 3) {
@@ -113,6 +121,8 @@ function registerFoldingProvider(context) {
     }
 }
 function activate(context) {
+    // Load tag definitions
+    const HLS_TAG_SPEC_MAPPING = loadHLSTagDefinitions(context);
     // Create base decoration type for all lines
     baseDecorationType = vscode.window.createTextEditorDecorationType({
         before: {
@@ -154,6 +164,34 @@ function activate(context) {
     if (vscode.window.activeTextEditor) {
         updateDecorations(vscode.window.activeTextEditor);
     }
+    // Register hover provider
+    context.subscriptions.push(vscode.languages.registerHoverProvider('m3u8', {
+        provideHover(document, position) {
+            const line = document.lineAt(position.line);
+            const text = line.text.trim();
+            // Only process lines starting with #
+            if (!text.startsWith('#')) {
+                return null;
+            }
+            // Extract the full tag up to the colon or end of line
+            const tagMatch = text.match(/^#((?:EXT-X-)?[A-Z-]+)(?::|$)/);
+            if (!tagMatch) {
+                return null;
+            }
+            const fullTag = tagMatch[1];
+            const tagInfo = HLS_TAG_SPEC_MAPPING[fullTag];
+            if (tagInfo) {
+                const markdown = new vscode.MarkdownString();
+                markdown.isTrusted = true;
+                markdown.supportHtml = true;
+                markdown.appendMarkdown(`**HLS Tag: #${fullTag}**\n\n`);
+                markdown.appendMarkdown(`${tagInfo.summary}\n\n`);
+                markdown.appendMarkdown(`[View specification section ${tagInfo.section}](${tagInfo.url})`);
+                return new vscode.Hover(markdown);
+            }
+            return null;
+        }
+    }));
 }
 function updateDecorations(editor) {
     const document = editor.document;

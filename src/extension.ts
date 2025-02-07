@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 
 interface ColorScheme {
@@ -10,9 +12,22 @@ interface DefaultColors {
     even: ColorScheme;
 }
 
+interface HLSTagInfo {
+    section: string;
+    url: string;
+    summary: string;
+}
+
 let decorationTypes: Map<string, vscode.TextEditorDecorationType> = new Map();
 let baseDecorationType: vscode.TextEditorDecorationType;
 let foldingProviderDisposable: vscode.Disposable | undefined;
+
+// Load HLS tag definitions from JSON file
+function loadHLSTagDefinitions(context: vscode.ExtensionContext): Record<string, HLSTagInfo> {
+    const jsonPath = path.join(context.extensionPath, 'hls-tags.json');
+    const jsonContent = fs.readFileSync(jsonPath, 'utf8');
+    return JSON.parse(jsonContent);
+}
 
 function parseTagColor(tagColor: string): { tag: string, scheme: ColorScheme } | undefined {
     const parts = tagColor.split(',');
@@ -136,6 +151,9 @@ function registerFoldingProvider(context: vscode.ExtensionContext) {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+    // Load tag definitions
+    const HLS_TAG_SPEC_MAPPING = loadHLSTagDefinitions(context);
+
     // Create base decoration type for all lines
     baseDecorationType = vscode.window.createTextEditorDecorationType({
         before: {
@@ -185,6 +203,44 @@ export function activate(context: vscode.ExtensionContext) {
     if (vscode.window.activeTextEditor) {
         updateDecorations(vscode.window.activeTextEditor);
     }
+
+    // Register hover provider
+    context.subscriptions.push(
+        vscode.languages.registerHoverProvider('m3u8', {
+            provideHover(document: vscode.TextDocument, position: vscode.Position) {
+                const line = document.lineAt(position.line);
+                const text = line.text.trim();
+
+                // Only process lines starting with #
+                if (!text.startsWith('#')) {
+                    return null;
+                }
+
+                // Extract the full tag up to the colon or end of line
+                const tagMatch = text.match(/^#((?:EXT-X-)?[A-Z-]+)(?::|$)/);
+                if (!tagMatch) {
+                    return null;
+                }
+
+                const fullTag = tagMatch[1];
+                const tagInfo = HLS_TAG_SPEC_MAPPING[fullTag];
+                
+                if (tagInfo) {
+                    const markdown = new vscode.MarkdownString();
+                    markdown.isTrusted = true;
+                    markdown.supportHtml = true;
+                    
+                    markdown.appendMarkdown(`**HLS Tag: #${fullTag}**\n\n`);
+                    markdown.appendMarkdown(`${tagInfo.summary}\n\n`);
+                    markdown.appendMarkdown(`[View specification section ${tagInfo.section}](${tagInfo.url})`);
+                    
+                    return new vscode.Hover(markdown);
+                }
+
+                return null;
+            }
+        })
+    );
 }
 
 function updateDecorations(editor: vscode.TextEditor) {

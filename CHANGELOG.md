@@ -10,6 +10,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Colour banding of segments for easier reading
 - Segment number decoration on each line
 - Configuration options for styling
+- Documentation for HLS tags on hover
 
 ## [1.0.0] - 2025-02-07
 
