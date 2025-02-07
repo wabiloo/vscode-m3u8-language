@@ -65,6 +65,59 @@
           "type": "boolean",
           "default": true,
           "description": "Enable code folding for segments (requires VS Code window reload)"
+        },
+        "m3u8.features.tagColors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z-]+,[^,]+,[^,]+$"
+          },
+          "default": [
+            "DISCONTINUITY,#ff4096,#502032"
+          ],
+          "description": "List of tag colors in format 'TAG,borderColor,backgroundColor'. First matching tag is used. Colors can be any CSS color (hex, rgb, rgba, etc)."
+        },
+        "m3u8.features.defaultColors": {
+          "type": "object",
+          "default": {
+            "odd": {
+              "backgroundColor": "rgba(25, 35, 50, 0.35)",
+              "borderColor": "rgba(50, 120, 220, 0.8)"
+            },
+            "even": {
+              "backgroundColor": "rgba(40, 55, 75, 0.25)",
+              "borderColor": "rgba(100, 160, 255, 0.6)"
+            }
+          },
+          "properties": {
+            "odd": {
+              "type": "object",
+              "properties": {
+                "backgroundColor": {
+                  "type": "string",
+                  "description": "Background color for odd-numbered segments"
+                },
+                "borderColor": {
+                  "type": "string",
+                  "description": "Border color for odd-numbered segments"
+                }
+              }
+            },
+            "even": {
+              "type": "object",
+              "properties": {
+                "backgroundColor": {
+                  "type": "string",
+                  "description": "Background color for even-numbered segments"
+                },
+                "borderColor": {
+                  "type": "string",
+                  "description": "Border color for even-numbered segments"
+                }
+              }
+            }
+          },
+          "description": "Default colors for alternating segments when no tag-specific colors match"
         }
       }
     },

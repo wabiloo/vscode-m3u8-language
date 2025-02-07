@@ -3,51 +3,81 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.activate = activate;
 exports.deactivate = deactivate;
 const vscode = require("vscode");
-let decorationType1;
-let decorationType2;
-let decorationTypeDiscontinuity;
+let decorationTypes = new Map();
 let baseDecorationType;
+let foldingProviderDisposable;
+function parseTagColor(tagColor) {
+    const parts = tagColor.split(',');
+    if (parts.length === 3) {
+        return {
+            tag: parts[0],
+            scheme: {
+                borderColor: parts[1],
+                backgroundColor: parts[2]
+            }
+        };
+    }
+    return undefined;
+}
 function getConfiguration() {
     const config = vscode.workspace.getConfiguration('m3u8.features');
+    const tagColors = new Map();
+    // Parse tag colors from simple string format
+    const tagColorStrings = config.get('tagColors', []);
+    tagColorStrings.forEach(tagColor => {
+        const parsed = parseTagColor(tagColor);
+        if (parsed) {
+            tagColors.set(parsed.tag, parsed.scheme);
+        }
+    });
     return {
         colorBanding: config.get('colorBanding', true),
         segmentNumbering: config.get('segmentNumbering', true),
-        folding: config.get('folding', true)
+        folding: config.get('folding', true),
+        tagColors,
+        defaultColors: config.get('defaultColors', {
+            odd: {
+                backgroundColor: 'rgba(25, 35, 50, 0.35)',
+                borderColor: 'rgba(50, 120, 220, 0.8)'
+            },
+            even: {
+                backgroundColor: 'rgba(40, 55, 75, 0.25)',
+                borderColor: 'rgba(100, 160, 255, 0.6)'
+            }
+        })
     };
 }
-function activate(context) {
-    // Create base decoration type for all lines
-    baseDecorationType = vscode.window.createTextEditorDecorationType({
-        before: {
-            contentText: '',
-            margin: '0 0 0 8px'
-        }
-    });
-    // Create decoration types with high contrast colors
-    decorationType1 = vscode.window.createTextEditorDecorationType({
-        backgroundColor: 'rgba(25, 35, 50, 0.35)',
+function createDecorationTypeFromScheme(scheme) {
+    return vscode.window.createTextEditorDecorationType({
+        backgroundColor: scheme.backgroundColor,
         borderStyle: 'solid',
         borderWidth: '0 0 0 2px',
-        borderColor: 'rgba(50, 120, 220, 0.8)',
+        borderColor: scheme.borderColor,
         isWholeLine: true
     });
-    decorationType2 = vscode.window.createTextEditorDecorationType({
-        backgroundColor: 'rgba(40, 55, 75, 0.25)',
-        borderStyle: 'solid',
-        borderWidth: '0 0 0 2px',
-        borderColor: 'rgba(100, 160, 255, 0.6)',
-        isWholeLine: true
+}
+function updateDecorationTypes() {
+    // Dispose existing decoration types
+    decorationTypes.forEach(type => type.dispose());
+    decorationTypes.clear();
+    const config = getConfiguration();
+    // Create decoration types for tag colors
+    config.tagColors.forEach((scheme, tag) => {
+        decorationTypes.set(tag, createDecorationTypeFromScheme(scheme));
     });
-    decorationTypeDiscontinuity = vscode.window.createTextEditorDecorationType({
-        backgroundColor: 'rgba(80, 30, 50, 0.35)',
-        borderStyle: 'solid',
-        borderWidth: '0 0 0 2px',
-        borderColor: 'rgba(255, 64, 150, 0.8)',
-        isWholeLine: true
-    });
-    // Register the folding range provider only if folding is enabled
+    // Create decoration types for default colors
+    decorationTypes.set('odd', createDecorationTypeFromScheme(config.defaultColors.odd));
+    decorationTypes.set('even', createDecorationTypeFromScheme(config.defaultColors.even));
+}
+function registerFoldingProvider(context) {
+    // Dispose of existing provider if it exists
+    if (foldingProviderDisposable) {
+        foldingProviderDisposable.dispose();
+        foldingProviderDisposable = undefined;
+    }
+    // Only register if folding is enabled
     if (getConfiguration().folding) {
-        context.subscriptions.push(vscode.languages.registerFoldingRangeProvider('m3u8', {
+        foldingProviderDisposable = vscode.languages.registerFoldingRangeProvider('m3u8', {
             provideFoldingRanges(document) {
                 const ranges = [];
                 let startLine;
@@ -78,8 +108,35 @@ function activate(context) {
                 }
                 return ranges;
             }
-        }));
+        });
+        context.subscriptions.push(foldingProviderDisposable);
     }
+}
+function activate(context) {
+    // Create base decoration type for all lines
+    baseDecorationType = vscode.window.createTextEditorDecorationType({
+        before: {
+            contentText: '',
+            margin: '0 0 0 8px'
+        }
+    });
+    // Initialize decoration types
+    updateDecorationTypes();
+    // Initial registration of folding provider
+    registerFoldingProvider(context);
+    // Listen for configuration changes
+    context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('m3u8.features.folding')) {
+            registerFoldingProvider(context);
+        }
+        if (e.affectsConfiguration('m3u8.features')) {
+            updateDecorationTypes();
+            const editor = vscode.window.activeTextEditor;
+            if (editor) {
+                updateDecorations(editor);
+            }
+        }
+    }));
     // Update decorations when the active editor changes
     vscode.window.onDidChangeActiveTextEditor(editor => {
         if (editor) {
@@ -104,14 +161,13 @@ function updateDecorations(editor) {
         return;
     }
     const config = getConfiguration();
-    const decorations1 = [];
-    const decorations2 = [];
-    const decorationsDiscontinuity = [];
+    const decorationsMap = new Map();
+    decorationTypes.forEach((_, key) => decorationsMap.set(key, []));
     const baseDecorations = [];
     let isInSegment = false;
     let segmentCount = 0;
-    let hasDiscontinuity = false;
     let currentSegmentDecorations = [];
+    let currentSegmentTags = new Set();
     // Add base decoration for every line
     for (let i = 0; i < document.lineCount; i++) {
         const line = document.lineAt(i);
@@ -129,12 +185,13 @@ function updateDecorations(editor) {
             if (!isInSegment) {
                 isInSegment = true;
                 segmentCount++;
-                hasDiscontinuity = false;
                 currentSegmentDecorations = [];
+                currentSegmentTags = new Set();
             }
-            // Check for DISCONTINUITY tag
-            if (text.includes('DISCONTINUITY')) {
-                hasDiscontinuity = true;
+            // Extract tag from line (everything after #EXT-X- until first : or end)
+            const match = text.match(/#EXT-X-([A-Z-]+)(?::|$)/);
+            if (match) {
+                currentSegmentTags.add(match[1]);
             }
             // Create decoration for this line
             const range = line.range;
@@ -160,38 +217,33 @@ function updateDecorations(editor) {
                     } : undefined
                 };
                 currentSegmentDecorations.push(decoration);
-                // Add all decorations for this segment to the appropriate array if color banding is enabled
+                // Add decorations to appropriate collection if color banding is enabled
                 if (config.colorBanding) {
-                    if (hasDiscontinuity) {
-                        decorationsDiscontinuity.push(...currentSegmentDecorations);
-                    }
-                    else if (segmentCount % 2 === 1) {
-                        decorations1.push(...currentSegmentDecorations);
+                    // Find first matching tag that has a color scheme
+                    let matchingTag = Array.from(currentSegmentTags).find(tag => config.tagColors.has(tag));
+                    if (matchingTag) {
+                        decorationsMap.get(matchingTag)?.push(...currentSegmentDecorations);
                     }
                     else {
-                        decorations2.push(...currentSegmentDecorations);
+                        // Use default alternating colors
+                        const key = segmentCount % 2 === 1 ? 'odd' : 'even';
+                        decorationsMap.get(key)?.push(...currentSegmentDecorations);
                     }
                 }
                 isInSegment = false;
                 currentSegmentDecorations = [];
+                currentSegmentTags.clear();
             }
         }
     }
     editor.setDecorations(baseDecorationType, baseDecorations);
-    editor.setDecorations(decorationType1, config.colorBanding ? decorations1 : []);
-    editor.setDecorations(decorationType2, config.colorBanding ? decorations2 : []);
-    editor.setDecorations(decorationTypeDiscontinuity, config.colorBanding ? decorationsDiscontinuity : []);
+    decorationTypes.forEach((type, key) => {
+        editor.setDecorations(type, config.colorBanding ? (decorationsMap.get(key) || []) : []);
+    });
 }
 function deactivate() {
-    if (decorationType1) {
-        decorationType1.dispose();
-    }
-    if (decorationType2) {
-        decorationType2.dispose();
-    }
-    if (decorationTypeDiscontinuity) {
-        decorationTypeDiscontinuity.dispose();
-    }
+    decorationTypes.forEach(type => type.dispose());
+    decorationTypes.clear();
     if (baseDecorationType) {
         baseDecorationType.dispose();
     }

@@ -14,10 +14,12 @@ This extension adds language support for M3U8/HLS (HTTP Live Streaming) playlist
   - ISO8601 dates
   - Comments
   - Invalid attributes (as per the Pantos spec)
-- Folding support for segments and associated tags
-- Colour banding of segments for easier reading
-- Segment number decoration on each line
-
+- Configurable decorations:
+  - Folding support for segments and associated tags
+  - Colour banding of segments for easier reading
+    - Including specific colors for segments with chosen tags
+  - Segment number decoration on each line
+  
 ## Supported File Extensions
 
 - `.m3u8`

@@ -9,6 +9,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Folding support for segments and associated tags
 - Colour banding of segments for easier reading
 - Segment number decoration on each line
+- Configuration options for styling
 
 ## [1.0.0] - 2025-02-07
 
