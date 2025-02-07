@@ -27,7 +27,8 @@
         "section": "4.4.2.3",
         "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.3",
         "summary": "Indicates a discontinuity between the Media Segment following it and the one preceding it. Can affect timing, encoding, or other stream attributes.",
-        "context": "segment"
+        "context": "segment",
+        "icon": "discontinuity"
     },
     "EXT-X-KEY": {
         "section": "4.4.2.4",
@@ -130,5 +131,20 @@
         "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.2",
         "summary": "Indicates a preferred point at which to start playing a Playlist. Includes time offset and precise start point flag.",
         "context": "header"
+    },
+    "EXT-X-CUE-OUT": {
+        "summary": "Indicates that the following media segment is a splice out point.",
+        "context": "segment",
+        "icon": "cue-out"
+    },
+    "EXT-X-CUE-IN": {
+        "summary": "Indicates that the following media segment is a splice in point.",
+        "context": "segment",
+        "icon": "cue-in"
+    },
+    "EXT-OATCLS-SCTE35": {
+        "summary": "Contains SCTE-35 data in base64 format",
+        "context": "segment",
+        "icon": "cue"
     }
 }

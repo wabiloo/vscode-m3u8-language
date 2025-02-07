@@ -9,6 +9,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Folding support for segments and associated tags
 - Colour banding of segments for easier reading
 - Segment number decoration on each line
+- Gutter icons
 - Configuration options for styling
 - Documentation for HLS tags on hover
 

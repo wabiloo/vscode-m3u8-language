@@ -13,6 +13,10 @@ let mediaDecorationType;
 let iFrameStreamInfDecorationType;
 let audioMediaDecorationType;
 let subtitleMediaDecorationType;
+let tagIconDecorationTypes = new Map();
+let cueInDecorationType;
+let cueOutDecorationType;
+let cueDecorationType;
 // Load HLS tag definitions from JSON file
 function loadHLSTagDefinitions(context) {
     const jsonPath = path.join(context.extensionPath, 'hls-tags.json');
@@ -172,12 +176,18 @@ function activate(context) {
     const audioIconPath = path.join(context.extensionPath, 'images', 'audio.svg');
     const subtitleIconPath = path.join(context.extensionPath, 'images', 'subtitle.svg');
     const iframeIconPath = path.join(context.extensionPath, 'images', 'iframe.svg');
+    const cueInIconPath = path.join(context.extensionPath, 'images', 'cue-in.svg');
+    const cueOutIconPath = path.join(context.extensionPath, 'images', 'cue-out.svg');
+    const cueIconPath = path.join(context.extensionPath, 'images', 'cue.svg');
     console.log('Extension path:', context.extensionPath);
     console.log('Icon paths:', {
         stream: streamIconPath,
         audio: audioIconPath,
         subtitle: subtitleIconPath,
-        iframe: iframeIconPath
+        iframe: iframeIconPath,
+        cueIn: cueInIconPath,
+        cueOut: cueOutIconPath,
+        cue: cueIconPath
     });
     try {
         // Verify files exist
@@ -185,19 +195,20 @@ function activate(context) {
             stream: fs.existsSync(streamIconPath),
             audio: fs.existsSync(audioIconPath),
             subtitle: fs.existsSync(subtitleIconPath),
-            iframe: fs.existsSync(iframeIconPath)
+            iframe: fs.existsSync(iframeIconPath),
+            cueIn: fs.existsSync(cueInIconPath),
+            cueOut: fs.existsSync(cueOutIconPath),
+            cue: fs.existsSync(cueIconPath)
         };
         console.log('Icons exist:', filesExist);
-        if (!filesExist.stream || !filesExist.audio || !filesExist.subtitle || !filesExist.iframe) {
+        if (!Object.values(filesExist).every(exists => exists)) {
             console.error('Some icon files are missing!');
         }
-        // Try to read the files to verify content
-        const streamContent = fs.readFileSync(streamIconPath, 'utf8');
-        console.log('Stream icon content length:', streamContent.length);
     }
     catch (error) {
         console.error('Error checking icon files:', error);
     }
+    // Create decoration types
     streamInfDecorationType = vscode.window.createTextEditorDecorationType({
         gutterIconPath: vscode.Uri.file(streamIconPath)
     });
@@ -209,6 +220,27 @@ function activate(context) {
     });
     iFrameStreamInfDecorationType = vscode.window.createTextEditorDecorationType({
         gutterIconPath: vscode.Uri.file(iframeIconPath)
+    });
+    cueInDecorationType = vscode.window.createTextEditorDecorationType({
+        gutterIconPath: vscode.Uri.file(cueInIconPath)
+    });
+    cueOutDecorationType = vscode.window.createTextEditorDecorationType({
+        gutterIconPath: vscode.Uri.file(cueOutIconPath)
+    });
+    cueDecorationType = vscode.window.createTextEditorDecorationType({
+        gutterIconPath: vscode.Uri.file(cueIconPath)
+    });
+    // Load tag definitions and create decoration types for tags with icons
+    const tagDefinitions = loadHLSTagDefinitions(context);
+    Object.entries(tagDefinitions).forEach(([tag, info]) => {
+        if (info.icon) {
+            const iconPath = path.join(context.extensionPath, 'images', `${info.icon}.svg`);
+            if (fs.existsSync(iconPath)) {
+                tagIconDecorationTypes.set(tag, vscode.window.createTextEditorDecorationType({
+                    gutterIconPath: vscode.Uri.file(iconPath)
+                }));
+            }
+        }
     });
     // Initialize decoration types
     updateDecorationTypes();
@@ -250,7 +282,7 @@ function activate(context) {
         }
     }, null, context.subscriptions);
     // Register disposables
-    context.subscriptions.push(streamInfDecorationType, audioMediaDecorationType, subtitleMediaDecorationType, iFrameStreamInfDecorationType);
+    context.subscriptions.push(streamInfDecorationType, audioMediaDecorationType, subtitleMediaDecorationType, iFrameStreamInfDecorationType, cueInDecorationType, cueOutDecorationType, cueDecorationType, ...Array.from(tagIconDecorationTypes.values()));
     // Initial update for the active editor
     if (vscode.window.activeTextEditor) {
         updateDecorations(vscode.window.activeTextEditor, context);
@@ -284,6 +316,29 @@ function activate(context) {
         }
     }));
 }
+function getIconForTag(text, tagDefinitions) {
+    // First check for DATERANGE special cases
+    if (text.startsWith('#EXT-X-DATERANGE:')) {
+        if (text.includes('SCTE35-IN')) {
+            return 'cue-in';
+        }
+        if (text.includes('SCTE35-OUT')) {
+            return 'cue-out';
+        }
+        return 'cue'; // Default to 'cue' for all other DATERANGE tags
+    }
+    // Extract the full tag name up to the colon
+    const match = text.match(/^#((?:EXT-)?(?:X-)?[A-Z0-9-]+)(?::|$)/);
+    if (!match) {
+        return undefined;
+    }
+    const tag = match[1];
+    const tagInfo = tagDefinitions[tag];
+    if (tagInfo?.icon) {
+        return tagInfo.icon;
+    }
+    return undefined;
+}
 function updateDecorations(editor, context) {
     const document = editor.document;
     if (document.languageId !== 'm3u8') {
@@ -299,6 +354,13 @@ function updateDecorations(editor, context) {
     const audioMediaDecorations = [];
     const subtitleMediaDecorations = [];
     const iFrameStreamInfDecorations = [];
+    // Initialize decorations for each icon type
+    const iconDecorations = new Map();
+    for (const [tag, info] of Object.entries(tagDefinitions)) {
+        if (info.icon) {
+            iconDecorations.set(info.icon, []);
+        }
+    }
     let isInSegment = false;
     let segmentCount = 0;
     let currentSegmentDecorations = [];
@@ -311,11 +373,38 @@ function updateDecorations(editor, context) {
     for (let i = 0; i < document.lineCount; i++) {
         const line = document.lineAt(i);
         const text = line.text.trim();
-        // Skip empty lines and comments
         if (text === '' || text.startsWith('# ')) {
             continue;
         }
         if (text.startsWith('#')) {
+            // Handle multivariant playlist icons
+            if (text.startsWith('#EXT-X-STREAM-INF:')) {
+                streamInfDecorations.push({ range: line.range });
+            }
+            else if (text.startsWith('#EXT-X-MEDIA:')) {
+                const typeMatch = text.match(/TYPE=([A-Z]+)/);
+                if (typeMatch) {
+                    const mediaType = typeMatch[1];
+                    if (mediaType === 'AUDIO') {
+                        audioMediaDecorations.push({ range: line.range });
+                    }
+                    else if (mediaType === 'SUBTITLES') {
+                        subtitleMediaDecorations.push({ range: line.range });
+                    }
+                }
+            }
+            else if (text.startsWith('#EXT-X-I-FRAME-STREAM-INF:')) {
+                iFrameStreamInfDecorations.push({ range: line.range });
+            }
+            // Handle JSON-defined icons and special cases
+            const iconType = getIconForTag(text, tagDefinitions);
+            if (iconType) {
+                const decorations = iconDecorations.get(iconType);
+                if (decorations) {
+                    decorations.push({ range: line.range });
+                }
+            }
+            // Handle segment tracking for background/border decorations
             const tag = extractTag(text);
             if (tag) {
                 if (isHeaderOrMultivariantTag(tag, tagDefinitions)) {
@@ -357,26 +446,6 @@ function updateDecorations(editor, context) {
                     currentSegmentDecorations.push(decoration);
                 }
             }
-            // Check for gutter icon tags
-            if (text.startsWith('#EXT-X-STREAM-INF:')) {
-                streamInfDecorations.push({ range: line.range });
-            }
-            else if (text.startsWith('#EXT-X-MEDIA:')) {
-                // Parse the MEDIA type
-                const typeMatch = text.match(/TYPE=([A-Z]+)/);
-                if (typeMatch) {
-                    const mediaType = typeMatch[1];
-                    if (mediaType === 'AUDIO') {
-                        audioMediaDecorations.push({ range: line.range });
-                    }
-                    else if (mediaType === 'SUBTITLES') {
-                        subtitleMediaDecorations.push({ range: line.range });
-                    }
-                }
-            }
-            else if (text.startsWith('#EXT-X-I-FRAME-STREAM-INF:')) {
-                iFrameStreamInfDecorations.push({ range: line.range });
-            }
         }
         else if (!text.startsWith('#')) {
             // Found a URI line
@@ -416,25 +485,37 @@ function updateDecorations(editor, context) {
             }
         }
     }
-    // Apply all decorations
-    editor.setDecorations(baseDecorationType, baseDecorations);
-    decorationTypes.forEach((type, key) => {
-        editor.setDecorations(type, config.colorBanding ? (decorationsMap.get(key) || []) : []);
-    });
-    // Apply gutter icons
+    // Apply decorations
     if (config.gutterIcons) {
+        // Apply built-in icons
         editor.setDecorations(streamInfDecorationType, streamInfDecorations);
         editor.setDecorations(audioMediaDecorationType, audioMediaDecorations);
         editor.setDecorations(subtitleMediaDecorationType, subtitleMediaDecorations);
         editor.setDecorations(iFrameStreamInfDecorationType, iFrameStreamInfDecorations);
+        // Apply JSON-defined icons
+        for (const [tag, info] of Object.entries(tagDefinitions)) {
+            if (info.icon) {
+                const decorationType = tagIconDecorationTypes.get(tag);
+                const decorations = iconDecorations.get(info.icon);
+                if (decorationType && decorations) {
+                    editor.setDecorations(decorationType, decorations);
+                }
+            }
+        }
     }
     else {
-        // Clear any existing gutter icons
+        // Clear all icons
         editor.setDecorations(streamInfDecorationType, []);
         editor.setDecorations(audioMediaDecorationType, []);
         editor.setDecorations(subtitleMediaDecorationType, []);
         editor.setDecorations(iFrameStreamInfDecorationType, []);
+        tagIconDecorationTypes.forEach(type => editor.setDecorations(type, []));
     }
+    // Apply color banding
+    editor.setDecorations(baseDecorationType, baseDecorations);
+    decorationTypes.forEach((type, key) => {
+        editor.setDecorations(type, config.colorBanding ? (decorationsMap.get(key) || []) : []);
+    });
 }
 function deactivate() {
     decorationTypes.forEach(type => type.dispose());
@@ -446,5 +527,10 @@ function deactivate() {
     audioMediaDecorationType?.dispose();
     subtitleMediaDecorationType?.dispose();
     iFrameStreamInfDecorationType?.dispose();
+    cueInDecorationType?.dispose();
+    cueOutDecorationType?.dispose();
+    cueDecorationType?.dispose();
+    tagIconDecorationTypes.forEach(type => type.dispose());
+    tagIconDecorationTypes.clear();
 }
 //# sourceMappingURL=extension.js.map

@@ -13,17 +13,17 @@ Visual Studio Code extension providing language support for M3U8 (HLS) files.
   - Comments
   - Invalid attributes (as per the HLS specification)
 
-![Syntax Highlighting](images/syntax-highlighting.png)
+![Syntax Highlighting](https://raw.githubusercontent.com/wabiloo/vscode-m3u8-language/main/images/syntax-highlighting.png)
 
 - Configurable decorations:
   - Folding support for segments and associated tags
   - Colour banding of segments for easier reading
     - Including specific colors for segments with chosen tags
   - Segment number decoration on each line
-  - Gutter icons in multivariant playlists
+  - Gutter icons for specific tags (in multivariant playlists and for cues and signals)
 - Documentation for HLS tags on hover, and links to the relevant sections of the HLS specification 
 
-![Tag Documentation](images/tag-documentation.png)
+![Tag Documentation](https://raw.githubusercontent.com/wabiloo/vscode-m3u8-language/main/images/tag-documentation.png)
 
 ## Supported File Extensions
 
@@ -58,7 +58,7 @@ The `m3u8.features.defaultColors` setting allows you to customize the colors use
 }
 ```
 
-![Settings](images/settings.png)
+![Settings](https://raw.githubusercontent.com/wabiloo/vscode-m3u8-language/main/images/settings.png)
 
 ## Examples
 
