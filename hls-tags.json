@@ -146,5 +146,10 @@
         "summary": "Contains SCTE-35 data in base64 format",
         "context": "segment",
         "icon": "cue"
+    },
+    "EXT-X-SPLICEPOINT-SCTE35": {
+        "summary": "Contains SCTE-35 data in base64 format",
+        "context": "segment",
+        "icon": "cue"
     }
 }

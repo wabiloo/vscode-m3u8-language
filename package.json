@@ -1,8 +1,8 @@
 {
   "name": "m3u8-hls-vscode",
   "displayName": "M3U8 / HLS Language Support",
-  "description": "Language support for M3U8 (HLS) files with syntax highlighting",
-  "version": "1.2.0",
+  "description": "Language support for M3U8 (HLS) files with syntax highlighting, inline documentation, and gutter icons",
+  "version": "1.2.1",
   "engines": {
     "vscode": "^1.85.0"
   },
