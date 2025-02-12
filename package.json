@@ -55,6 +55,10 @@
           ".m3u8",
           ".m3u"
         ],
+        "icon": {
+          "light": "./images/m3u8.svg",
+          "dark": "./images/m3u8.svg"
+        },
         "configuration": "./language-configuration.json"
       }
     ],
