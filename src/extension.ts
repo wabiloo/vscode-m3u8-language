@@ -12,6 +12,7 @@ import { HLSTagInfo, RemoteDocumentContent, RemotePlaylistInfo } from './types';
 // Global state
 let outputChannel: vscode.OutputChannel;
 let decorationManager: DecorationManager;
+let remotePlaylistService: RemotePlaylistService;
 const remotePlaylistMap = new Map<string, RemotePlaylistInfo>();
 const remoteDocumentContentMap = new Map<string, RemoteDocumentContent>();
 
@@ -28,17 +29,17 @@ function loadHLSTagDefinitions(context: vscode.ExtensionContext): Record<string,
 
 export function activate(context: vscode.ExtensionContext) {
     // Create output channel for logging
-    outputChannel = vscode.window.createOutputChannel('M3U8');
+    outputChannel = vscode.window.createOutputChannel('M3U8 / HLS');
     context.subscriptions.push(outputChannel);
 
-    log('M3U8 extension activating...');
+    log('M3U8 / HLS extension activating...');
 
     // Load tag definitions
     const tagDefinitions = loadHLSTagDefinitions(context);
 
     // Initialize services and managers
     decorationManager = new DecorationManager(context, tagDefinitions);
-    const remotePlaylistService = new RemotePlaylistService(
+    remotePlaylistService = new RemotePlaylistService(
         remotePlaylistMap,
         remoteDocumentContentMap,
         context,
@@ -108,6 +109,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
     decorationManager.dispose();
+    remotePlaylistService.dispose();
     
     // Clean up all refresh intervals
     for (const [_, info] of remotePlaylistMap) {

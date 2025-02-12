@@ -30,12 +30,7 @@ export class DecorationManager {
         this.linkDecorationType = vscode.window.createTextEditorDecorationType({
             textDecoration: 'underline',
             cursor: 'pointer',
-            color: '#3794ff',
-            after: {
-                contentText: ' 🔗',
-                color: '#3794ff',
-                margin: '0 0 0 4px'
-            }
+            color: '#3794ff'
         });
 
         // Create icon decoration types

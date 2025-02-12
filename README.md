@@ -16,8 +16,10 @@ Visual Studio Code extension providing language support for M3U8 (HLS) files.
 - Remote playlist support:
   - Open and view remote M3U8 playlists directly in VS Code
   - Clickable links to navigate between multi-variant playlists and variants
-  - Auto-refresh support for live playlists with configurable interval
+  - Auto-refresh support for live playlists with configurable interval (defaulting to #EXT-X-TARGETDURATION)
   - Manual refresh option for on-demand updates
+  - Download segments from media playlists with a single click
+  - Smart link handling: opens playlists, downloads segments
 
 - Configurable decorations:
   - Folding support for segments and associated tags
@@ -45,7 +47,6 @@ This extension contributes the following settings:
 * `m3u8.features.showRunningDuration`: Show running duration for each segment (default: `true`)
 * `m3u8.features.showProgramDateTime`: Show effective timestamp for each segment (default: `true`)
 * `m3u8.features.clickableLinks`: Enable clickable links for URIs in playlists (default: `true`)
-* `m3u8.features.autoRefreshInterval`: Auto-refresh interval in seconds for remote playlists (default: `10`)
 * `m3u8.features.tagColors`: List of tag colors in format `"TAG,borderColor,backgroundColor"` (default: `[]`)
 * `m3u8.features.defaultColors`: Default colors for odd/even segments when no tag colors match (see below)
 
@@ -72,9 +73,9 @@ The `m3u8.features.defaultColors` setting allows you to customize the colors use
 
 The extension provides the following commands:
 
-* `M3U8: Open Remote Playlist`: Open a remote M3U8 playlist by entering its URL
-* `M3U8: Refresh Current Playlist`: Manually refresh the current remote playlist
-* `M3U8: Toggle Auto-Refresh`: Enable or disable automatic refreshing of the current remote playlist
+* `M3U8 / HLS: Open Remote Playlist`: Open a remote M3U8 playlist by entering its URL
+* `M3U8 / HLS: Refresh Current Playlist`: Manually refresh the current remote playlist
+* `M3U8 / HLS: Toggle Auto-Refresh`: Enable or disable automatic refreshing of the current remote playlist (not available for multi-variant playlists)
 
 ## Examples
 

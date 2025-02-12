@@ -4,8 +4,9 @@
 - Added remote playlist support
   - Open and view remote M3U8 playlists directly in VS Code
   - Clickable links to navigate between multi-variant playlists and variants
-  - Auto-refresh support for live playlists
+  - Auto-refresh support for live playlists with configurable interval (defaulting to #EXT-X-TARGETDURATION)
   - Manual refresh option for on-demand updates
+  - Download segments from media playlists with a single click
 
 ## [1.2.0] - 2025-02-07
 - Running duration and program date time decoration in variant playlists

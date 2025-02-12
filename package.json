@@ -30,18 +30,18 @@
     "commands": [
       {
         "command": "m3u8.openRemotePlaylist",
-        "title": "M3U8: Open Remote Playlist",
-        "category": "M3U8"
+        "title": "Open Remote Playlist",
+        "category": "M3U8 / HLS"
       },
       {
         "command": "m3u8.refreshPlaylist",
-        "title": "M3U8: Refresh Current Playlist",
-        "category": "M3U8"
+        "title": "Refresh Current Playlist",
+        "category": "M3U8 / HLS"
       },
       {
         "command": "m3u8.toggleAutoRefresh",
-        "title": "M3U8: Toggle Auto-Refresh",
-        "category": "M3U8"
+        "title": "Toggle Auto-Refresh",
+        "category": "M3U8 / HLS"
       }
     ],
     "languages": [
@@ -98,6 +98,11 @@
           "default": true,
           "description": "Show effective timestamp for each segment based on PROGRAM-DATE-TIME tags"
         },
+        "m3u8.features.clickableLinks": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable clickable links for URIs in playlists"
+        },
         "m3u8.features.tagColors": {
           "type": "array",
           "items": {
@@ -149,18 +154,7 @@
               }
             }
           },
-          "description": "Default colors for alternating segments when no tag-specific colors match"
-        },
-        "m3u8.features.autoRefreshInterval": {
-          "type": "number",
-          "default": 10,
-          "minimum": 1,
-          "description": "Auto-refresh interval in seconds for remote playlists"
-        },
-        "m3u8.features.clickableLinks": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable clickable links for URIs in playlists"
+          "description": "Default colors for alternating segments when no tag colors match"
         }
       }
     },
