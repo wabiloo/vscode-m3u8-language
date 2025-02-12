@@ -3,7 +3,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.activate = activate;
 exports.deactivate = deactivate;
 const fs = require("fs");
+const http = require("http");
+const https = require("https");
 const path = require("path");
+const url_1 = require("url");
 const vscode = require("vscode");
 let decorationTypes = new Map();
 let baseDecorationType;
@@ -17,6 +20,27 @@ let tagIconDecorationTypes = new Map();
 let cueInDecorationType;
 let cueOutDecorationType;
 let cueDecorationType;
+const remotePlaylistMap = new Map();
+const remoteDocumentContentMap = new Map();
+// Create decoration type for clickable links
+const linkDecorationType = vscode.window.createTextEditorDecorationType({
+    textDecoration: 'underline',
+    cursor: 'pointer',
+    color: '#3794ff', // VS Code's standard link color
+    after: {
+        contentText: ' 🔗',
+        color: '#3794ff',
+        margin: '0 0 0 4px'
+    }
+});
+// Add this near the top where other interfaces are defined
+let globalContext;
+// Add this near the top with other global variables
+let outputChannel;
+function log(message) {
+    console.log(message);
+    outputChannel?.appendLine(message);
+}
 // Load HLS tag definitions from JSON file
 function loadHLSTagDefinitions(context) {
     const jsonPath = path.join(context.extensionPath, 'hls-tags.json');
@@ -162,7 +186,175 @@ function registerFoldingProvider(context) {
         context.subscriptions.push(foldingProviderDisposable);
     }
 }
+async function fetchRemotePlaylist(uri) {
+    return new Promise((resolve, reject) => {
+        const url = new url_1.URL(uri);
+        const protocol = url.protocol === 'https:' ? https : http;
+        const request = protocol.get(uri, (response) => {
+            if (response.statusCode !== 200) {
+                reject(new Error(`Failed to fetch playlist: ${response.statusCode}`));
+                return;
+            }
+            let data = '';
+            response.on('data', (chunk) => data += chunk);
+            response.on('end', () => resolve(data));
+        });
+        request.on('error', (error) => reject(error));
+        request.end();
+    });
+}
+async function openRemotePlaylist() {
+    const lastUsedUrl = globalContext.globalState.get('lastUsedM3u8Url');
+    const uri = await vscode.window.showInputBox({
+        prompt: 'Enter the URL of the M3U8 playlist',
+        placeHolder: lastUsedUrl || 'https://example.com/playlist.m3u8',
+        value: lastUsedUrl || ''
+    });
+    if (!uri)
+        return;
+    try {
+        const content = await fetchRemotePlaylist(uri);
+        // Create a virtual document URI with the remote URL as the filename
+        const documentUri = vscode.Uri.parse(`m3u8-remote:/${encodeURIComponent(uri)}`);
+        // Store the content before creating the document
+        remoteDocumentContentMap.set(documentUri.toString(), {
+            content,
+            uri
+        });
+        const doc = await vscode.workspace.openTextDocument(documentUri);
+        await vscode.window.showTextDocument(doc);
+        // Store remote playlist info
+        remotePlaylistMap.set(doc.uri.toString(), {
+            uri,
+            autoRefreshEnabled: false,
+            refreshInterval: undefined
+        });
+        // Save the URL for next time
+        await globalContext.globalState.update('lastUsedM3u8Url', uri);
+    }
+    catch (error) {
+        vscode.window.showErrorMessage(`Failed to fetch playlist: ${error.message}`);
+    }
+}
+async function refreshCurrentPlaylist() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor)
+        return;
+    const docUri = editor.document.uri.toString();
+    const playlistInfo = remotePlaylistMap.get(docUri);
+    if (!playlistInfo) {
+        vscode.window.showWarningMessage('Current document is not a remote playlist');
+        return;
+    }
+    try {
+        const content = await fetchRemotePlaylist(playlistInfo.uri);
+        const edit = new vscode.WorkspaceEdit();
+        const range = new vscode.Range(editor.document.positionAt(0), editor.document.positionAt(editor.document.getText().length));
+        edit.replace(editor.document.uri, range, content);
+        await vscode.workspace.applyEdit(edit);
+    }
+    catch (error) {
+        vscode.window.showErrorMessage(`Failed to refresh playlist: ${error.message}`);
+    }
+}
+function toggleAutoRefresh() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor)
+        return;
+    const docUri = editor.document.uri.toString();
+    const playlistInfo = remotePlaylistMap.get(docUri);
+    if (!playlistInfo) {
+        vscode.window.showWarningMessage('Current document is not a remote playlist');
+        return;
+    }
+    if (playlistInfo.autoRefreshEnabled) {
+        if (playlistInfo.refreshInterval) {
+            clearInterval(playlistInfo.refreshInterval);
+            playlistInfo.refreshInterval = undefined;
+        }
+        playlistInfo.autoRefreshEnabled = false;
+        vscode.window.showInformationMessage('Auto-refresh disabled');
+    }
+    else {
+        const interval = vscode.workspace.getConfiguration('m3u8.features').get('autoRefreshInterval', 10) * 1000;
+        playlistInfo.refreshInterval = setInterval(() => refreshCurrentPlaylist(), interval);
+        playlistInfo.autoRefreshEnabled = true;
+        vscode.window.showInformationMessage(`Auto-refresh enabled (${interval / 1000}s interval)`);
+    }
+}
+function isValidUrl(str) {
+    try {
+        new url_1.URL(str);
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+function resolveUri(baseUri, relativeUri) {
+    try {
+        return new url_1.URL(relativeUri, baseUri).toString();
+    }
+    catch {
+        return relativeUri;
+    }
+}
+async function handleUriClick(uri) {
+    log(`handleUriClick called with uri: ${uri}`);
+    if (isValidUrl(uri)) {
+        try {
+            log(`Fetching remote playlist: ${uri}`);
+            const content = await fetchRemotePlaylist(uri);
+            // Create a virtual document URI with the remote URL as the filename
+            const documentUri = vscode.Uri.parse(`m3u8-remote:/${encodeURIComponent(uri)}`);
+            // Store the content before creating the document
+            remoteDocumentContentMap.set(documentUri.toString(), {
+                content,
+                uri
+            });
+            const doc = await vscode.workspace.openTextDocument(documentUri);
+            await vscode.window.showTextDocument(doc);
+            remotePlaylistMap.set(doc.uri.toString(), {
+                uri,
+                autoRefreshEnabled: false,
+                refreshInterval: undefined
+            });
+            log(`Successfully opened remote playlist: ${uri}`);
+        }
+        catch (error) {
+            const errorMessage = `Failed to open playlist: ${error.message}`;
+            log(errorMessage);
+            vscode.window.showErrorMessage(errorMessage);
+        }
+    }
+    else {
+        // Handle local file
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) {
+            log('No workspace folder found for local file');
+            return;
+        }
+        const localPath = path.join(workspaceFolder.uri.fsPath, uri);
+        log(`Attempting to open local file: ${localPath}`);
+        try {
+            const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(localPath));
+            await vscode.window.showTextDocument(doc);
+            log(`Successfully opened local file: ${localPath}`);
+        }
+        catch (error) {
+            const errorMessage = `Failed to open local file: ${error.message}`;
+            log(errorMessage);
+            vscode.window.showErrorMessage(errorMessage);
+        }
+    }
+}
 function activate(context) {
+    // Create output channel for logging
+    outputChannel = vscode.window.createOutputChannel('M3U8');
+    context.subscriptions.push(outputChannel);
+    // Store context globally
+    globalContext = context;
+    log('M3U8 extension activating...');
     // Load tag definitions
     const HLS_TAG_SPEC_MAPPING = loadHLSTagDefinitions(context);
     console.log('M3U8 extension activating...');
@@ -317,6 +509,86 @@ function activate(context) {
             return null;
         }
     }));
+    // Register new commands
+    context.subscriptions.push(vscode.commands.registerCommand('m3u8.openRemotePlaylist', openRemotePlaylist), vscode.commands.registerCommand('m3u8.refreshPlaylist', refreshCurrentPlaylist), vscode.commands.registerCommand('m3u8.toggleAutoRefresh', toggleAutoRefresh));
+    // Register document link provider for m3u8 files
+    context.subscriptions.push(vscode.languages.registerDocumentLinkProvider({ language: 'm3u8', scheme: '*' }, {
+        provideDocumentLinks(document) {
+            log(`Providing document links for ${document.uri.toString()}`);
+            const links = [];
+            const baseUri = remotePlaylistMap.get(document.uri.toString())?.uri;
+            for (let i = 0; i < document.lineCount; i++) {
+                const line = document.lineAt(i);
+                const text = line.text.trim();
+                // Skip empty lines and tags
+                if (!text || text.startsWith('#')) {
+                    continue;
+                }
+                log(`Found potential link: ${text}`);
+                const range = new vscode.Range(new vscode.Position(i, line.firstNonWhitespaceCharacterIndex), new vscode.Position(i, line.text.length));
+                const link = new vscode.DocumentLink(range);
+                // Resolve the URL and set the tooltip
+                let resolvedUrl = text;
+                if (baseUri && !isValidUrl(text)) {
+                    resolvedUrl = resolveUri(baseUri, text);
+                }
+                link.tooltip = `Click to open: ${resolvedUrl}`;
+                // Create the command URI with the resolved URL
+                const args = JSON.stringify([resolvedUrl]);
+                link.target = vscode.Uri.parse(`command:m3u8._handleUriClick?${encodeURIComponent(args)}`);
+                links.push(link);
+            }
+            log(`Found ${links.length} links in document`);
+            return links;
+        }
+    }));
+    // Register internal command for handling URI clicks
+    context.subscriptions.push(vscode.commands.registerCommand('m3u8._handleUriClick', async (...args) => {
+        if (!args || args.length === 0) {
+            log('No arguments provided to _handleUriClick');
+            return;
+        }
+        const uri = args[0];
+        log(`Handling URI click with resolved URL: ${uri}`);
+        await handleUriClick(uri);
+    }));
+    // Clean up on document close
+    context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(document => {
+        const playlistInfo = remotePlaylistMap.get(document.uri.toString());
+        if (playlistInfo?.refreshInterval) {
+            clearInterval(playlistInfo.refreshInterval);
+        }
+        remotePlaylistMap.delete(document.uri.toString());
+    }));
+    // Register custom URI handler for remote m3u8 files
+    context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider('m3u8-remote', {
+        provideTextDocumentContent(uri) {
+            const docContent = remoteDocumentContentMap.get(uri.toString());
+            if (!docContent) {
+                return '';
+            }
+            return docContent.content;
+        }
+    }));
+    // Clean up content map when documents are closed
+    context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(document => {
+        remoteDocumentContentMap.delete(document.uri.toString());
+    }));
+    // Add decoration update handlers
+    context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(editor => {
+        if (editor) {
+            updateLinkDecorations(editor);
+        }
+    }), vscode.workspace.onDidChangeTextDocument(event => {
+        const editor = vscode.window.activeTextEditor;
+        if (editor && event.document === editor.document) {
+            updateLinkDecorations(editor);
+        }
+    }));
+    // Initial update for the active editor
+    if (vscode.window.activeTextEditor) {
+        updateLinkDecorations(vscode.window.activeTextEditor);
+    }
 }
 function getIconForTag(text, tagDefinitions) {
     // First check for DATERANGE special cases
@@ -560,6 +832,22 @@ function updateDecorations(editor, context) {
         editor.setDecorations(type, config.colorBanding ? (decorationsMap.get(key) || []) : []);
     });
 }
+function updateLinkDecorations(editor) {
+    if (editor.document.languageId !== 'm3u8') {
+        return;
+    }
+    const decorations = [];
+    for (let i = 0; i < editor.document.lineCount; i++) {
+        const line = editor.document.lineAt(i);
+        const text = line.text.trim();
+        if (!text || text.startsWith('#')) {
+            continue;
+        }
+        const range = new vscode.Range(new vscode.Position(i, line.firstNonWhitespaceCharacterIndex), new vscode.Position(i, line.text.length));
+        decorations.push({ range });
+    }
+    editor.setDecorations(linkDecorationType, decorations);
+}
 function deactivate() {
     decorationTypes.forEach(type => type.dispose());
     decorationTypes.clear();
@@ -575,6 +863,13 @@ function deactivate() {
     cueDecorationType?.dispose();
     tagIconDecorationTypes.forEach(type => type.dispose());
     tagIconDecorationTypes.clear();
+    // Clean up all refresh intervals
+    for (const [_, info] of remotePlaylistMap) {
+        if (info.refreshInterval) {
+            clearInterval(info.refreshInterval);
+        }
+    }
+    remotePlaylistMap.clear();
 }
 function formatDuration(durationInSeconds) {
     const hours = Math.floor(durationInSeconds / 3600);

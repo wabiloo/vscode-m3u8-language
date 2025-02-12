@@ -13,6 +13,12 @@ Visual Studio Code extension providing language support for M3U8 (HLS) files.
 
 ![Syntax Highlighting](https://raw.githubusercontent.com/wabiloo/vscode-m3u8-language/main/images/syntax-highlighting.png)
 
+- Remote playlist support:
+  - Open and view remote M3U8 playlists directly in VS Code
+  - Clickable links to navigate between multi-variant playlists and variants
+  - Auto-refresh support for live playlists with configurable interval
+  - Manual refresh option for on-demand updates
+
 - Configurable decorations:
   - Folding support for segments and associated tags
   - Colour banding of segments for easier reading
@@ -36,6 +42,10 @@ This extension contributes the following settings:
 * `m3u8.features.segmentNumbering`: Show segment numbers in the right margin (default: `true`)
 * `m3u8.features.folding`: Enable folding support for segments and associated tags (default: `true`)
 * `m3u8.features.gutterIcons`: Show gutter icons for playlist pointers in multivariant playlists (default: `true`)
+* `m3u8.features.showRunningDuration`: Show running duration for each segment (default: `true`)
+* `m3u8.features.showProgramDateTime`: Show effective timestamp for each segment (default: `true`)
+* `m3u8.features.clickableLinks`: Enable clickable links for URIs in playlists (default: `true`)
+* `m3u8.features.autoRefreshInterval`: Auto-refresh interval in seconds for remote playlists (default: `10`)
 * `m3u8.features.tagColors`: List of tag colors in format `"TAG,borderColor,backgroundColor"` (default: `[]`)
 * `m3u8.features.defaultColors`: Default colors for odd/even segments when no tag colors match (see below)
 
@@ -57,6 +67,14 @@ The `m3u8.features.defaultColors` setting allows you to customize the colors use
 ```
 
 ![Settings](https://raw.githubusercontent.com/wabiloo/vscode-m3u8-language/main/images/settings.png)
+
+## Commands
+
+The extension provides the following commands:
+
+* `M3U8: Open Remote Playlist`: Open a remote M3U8 playlist by entering its URL
+* `M3U8: Refresh Current Playlist`: Manually refresh the current remote playlist
+* `M3U8: Toggle Auto-Refresh`: Enable or disable automatic refreshing of the current remote playlist
 
 ## Examples
 

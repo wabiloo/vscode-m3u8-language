@@ -1,5 +1,12 @@
 # Change Log
 
+## [1.3.0] - 2025-02-08
+- Added remote playlist support
+  - Open and view remote M3U8 playlists directly in VS Code
+  - Clickable links to navigate between multi-variant playlists and variants
+  - Auto-refresh support for live playlists
+  - Manual refresh option for on-demand updates
+
 ## [1.2.0] - 2025-02-07
 - Running duration and program date time decoration in variant playlists
 

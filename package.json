@@ -27,6 +27,23 @@
     "pretest": "npm run compile"
   },
   "contributes": {
+    "commands": [
+      {
+        "command": "m3u8.openRemotePlaylist",
+        "title": "M3U8: Open Remote Playlist",
+        "category": "M3U8"
+      },
+      {
+        "command": "m3u8.refreshPlaylist",
+        "title": "M3U8: Refresh Current Playlist",
+        "category": "M3U8"
+      },
+      {
+        "command": "m3u8.toggleAutoRefresh",
+        "title": "M3U8: Toggle Auto-Refresh",
+        "category": "M3U8"
+      }
+    ],
     "languages": [
       {
         "id": "m3u8",
@@ -133,6 +150,17 @@
             }
           },
           "description": "Default colors for alternating segments when no tag-specific colors match"
+        },
+        "m3u8.features.autoRefreshInterval": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "description": "Auto-refresh interval in seconds for remote playlists"
+        },
+        "m3u8.features.clickableLinks": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable clickable links for URIs in playlists"
         }
       }
     },
