@@ -21,35 +21,79 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
             const line = document.lineAt(i);
             const text = line.text.trim();
             
-            // Skip empty lines and tags
-            if (!text || text.startsWith('#')) {
-                continue;
+            if (text.startsWith('#')) {
+                // Handle URIs in any tag attributes
+                const uriMatches = text.matchAll(/URI="([^"]+)"/g);
+                for (const match of uriMatches) {
+                    const uri = match[1];
+                    const startPos = line.text.indexOf(uri);
+                    const range = new vscode.Range(
+                        new vscode.Position(i, startPos),
+                        new vscode.Position(i, startPos + uri.length)
+                    );
+                    
+                    const link = new vscode.DocumentLink(range);
+                    let resolvedUrl = uri;
+                    if (baseUri && !this.isValidUrl(uri)) {
+                        resolvedUrl = new URL(uri, baseUri).toString();
+                    }
+                    
+                    link.tooltip = isMultiVariant ? 
+                        `Click to open: ${resolvedUrl}` : 
+                        `Click to download: ${resolvedUrl}`;
+                    
+                    const args = JSON.stringify([resolvedUrl]);
+                    link.target = vscode.Uri.parse(`command:m3u8._handleUriClick?${encodeURIComponent(args)}`);
+                    links.push(link);
+                }
+
+                // Also handle URIs in non-quoted attributes (e.g., URI=example.m3u8)
+                const unquotedUriMatches = text.matchAll(/URI=([^,\s"]+)/g);
+                for (const match of unquotedUriMatches) {
+                    const uri = match[1];
+                    const startPos = line.text.indexOf(uri);
+                    const range = new vscode.Range(
+                        new vscode.Position(i, startPos),
+                        new vscode.Position(i, startPos + uri.length)
+                    );
+                    
+                    const link = new vscode.DocumentLink(range);
+                    let resolvedUrl = uri;
+                    if (baseUri && !this.isValidUrl(uri)) {
+                        resolvedUrl = new URL(uri, baseUri).toString();
+                    }
+                    
+                    link.tooltip = isMultiVariant ? 
+                        `Click to open: ${resolvedUrl}` : 
+                        `Click to download: ${resolvedUrl}`;
+                    
+                    const args = JSON.stringify([resolvedUrl]);
+                    link.target = vscode.Uri.parse(`command:m3u8._handleUriClick?${encodeURIComponent(args)}`);
+                    links.push(link);
+                }
+            } else if (text) {
+                // Handle standalone URI lines
+                const range = new vscode.Range(
+                    new vscode.Position(i, line.firstNonWhitespaceCharacterIndex),
+                    new vscode.Position(i, line.text.length)
+                );
+
+                const link = new vscode.DocumentLink(range);
+                
+                let resolvedUrl = text;
+                if (baseUri && !this.isValidUrl(text)) {
+                    resolvedUrl = new URL(text, baseUri).toString();
+                }
+
+                link.tooltip = isMultiVariant ? 
+                    `Click to open: ${resolvedUrl}` : 
+                    `Click to download: ${resolvedUrl}`;
+
+                const args = JSON.stringify([resolvedUrl]);
+                link.target = vscode.Uri.parse(`command:m3u8._handleUriClick?${encodeURIComponent(args)}`);
+                
+                links.push(link);
             }
-
-            this.log(`Found potential link: ${text}`);
-            const range = new vscode.Range(
-                new vscode.Position(i, line.firstNonWhitespaceCharacterIndex),
-                new vscode.Position(i, line.text.length)
-            );
-
-            const link = new vscode.DocumentLink(range);
-            
-            // Resolve the URL and set the tooltip
-            let resolvedUrl = text;
-            if (baseUri && !this.isValidUrl(text)) {
-                resolvedUrl = new URL(text, baseUri).toString();
-            }
-
-            // Set appropriate tooltip based on playlist type
-            link.tooltip = isMultiVariant ? 
-                `Click to open: ${resolvedUrl}` : 
-                `Click to download: ${resolvedUrl}`;
-
-            // Create the command URI with the resolved URL
-            const args = JSON.stringify([resolvedUrl]);
-            link.target = vscode.Uri.parse(`command:m3u8._handleUriClick?${encodeURIComponent(args)}`);
-            
-            links.push(link);
         }
 
         this.log(`Found ${links.length} links in document`);

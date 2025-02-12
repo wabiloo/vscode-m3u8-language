@@ -335,10 +335,7 @@ export class RemotePlaylistService {
             // Show save dialog
             const saveUri = await vscode.window.showSaveDialog({
                 defaultUri,
-                filters: {
-                    'Transport Stream': ['ts'],
-                    'All files': ['*']
-                }
+                filters: { 'All files': ['*'] }
             });
             
             if (saveUri) {
