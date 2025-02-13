@@ -7,6 +7,77 @@ export class SCTE35Service {
     private parser: SCTE35;
     private tagDefinitions: Record<string, HLSTagInfo>;
 
+    private readonly UPID_TYPES = {
+        0x00: 'Not Used',
+        0x01: 'User Defined (deprecated)',
+        0x02: 'ISCI (deprecated)',
+        0x03: 'Ad-ID',
+        0x04: 'UMID',
+        0x05: 'ISAN (deprecated)',
+        0x06: 'ISAN',
+        0x07: 'TID',
+        0x08: 'TI',
+        0x09: 'ADI',
+        0x0A: 'EIDR',
+        0x0B: 'ATSC Content Identifier',
+        0x0C: 'MPU',
+        0x0D: 'MID',
+        0x0E: 'ADS Information',
+        0x0F: 'URI',
+        0x10: 'UUID',
+        0x11: 'SCR'
+    } as const;
+
+    private readonly SEGMENTATION_TYPES = {
+        0x00: 'Not Indicated',
+        0x01: 'Content Identification',
+        0x02: 'Call Ad Server',
+        0x10: 'Program Start',
+        0x11: 'Program End',
+        0x12: 'Program Early Termination',
+        0x13: 'Program Breakaway',
+        0x14: 'Program Resumption',
+        0x15: 'Program Runover Planned',
+        0x16: 'Program Runover Unplanned',
+        0x17: 'Program Overlap Start',
+        0x18: 'Program Blackout Override',
+        0x19: 'Program Start - In Progress',
+        0x20: 'Chapter Start',
+        0x21: 'Chapter End',
+        0x22: 'Break Start',
+        0x23: 'Break End',
+        0x24: 'Opening Credit Start',
+        0x25: 'Opening Credit End',
+        0x26: 'Closing Credit Start',
+        0x27: 'Closing Credit End',
+        0x30: 'Provider Advertisement Start',
+        0x31: 'Provider Advertisement End',
+        0x32: 'Distributor Advertisement Start',
+        0x33: 'Distributor Advertisement End',
+        0x34: 'Provider Placement Opportunity Start',
+        0x35: 'Provider Placement Opportunity End',
+        0x36: 'Distributor Placement Opportunity Start',
+        0x37: 'Distributor Placement Opportunity End',
+        0x38: 'Provider Overlay Placement Opportunity Start',
+        0x39: 'Provider Overlay Placement Opportunity End',
+        0x3A: 'Distributor Overlay Placement Opportunity Start',
+        0x3B: 'Distributor Overlay Placement Opportunity End',
+        0x40: 'Unscheduled Event Start',
+        0x41: 'Unscheduled Event End',
+        0x50: 'Network Start',
+        0x51: 'Network End',
+        0x60: 'Alternative Content Opportunity Start',
+        0x61: 'Alternative Content Opportunity End'
+    } as const;
+
+    private readonly COMMAND_TYPES = {
+        0x00: 'Splice Null',
+        0x05: 'Splice Insert',
+        0x06: 'Time Signal',
+        0x07: 'Bandwidth Reservation',
+        0xFF: 'Private Command'
+    } as const;
+
     constructor(tagDefinitions: Record<string, HLSTagInfo>) {
         this.panel = undefined;
         this.parser = new SCTE35();
@@ -48,17 +119,48 @@ export class SCTE35Service {
                         margin: 4px 0;
                     }
                     .field-name {
-                        font-weight: bold;
                         color: var(--vscode-textLink-foreground);
+                    }
+                    .field-name.length {
+                        color: var(--vscode-editorLineNumber-foreground);
                     }
                     .field-value {
                         margin-left: 8px;
+                        font-weight: bold;
                     }
                     .field-value.string { color: var(--vscode-debugTokenExpression-string); }
                     .field-value.number { color: var(--vscode-debugTokenExpression-number); }
                     .field-value.boolean.true { color: var(--vscode-testing-iconPassed); }
                     .field-value.boolean.false { color: var(--vscode-testing-iconFailed); }
                     .field-value.null { color: var(--vscode-debugTokenExpression-error); }
+                    .field-value .description {
+                        margin-left: 12px;
+                        background-color: var(--vscode-badge-background);
+                        color: var(--vscode-badge-foreground);
+                        padding: 2px 6px;
+                        border-radius: 4px;
+                        font-size: 0.9em;
+                        font-weight: normal;
+                    }
+                    .field-value .description.mapped {
+                        background-color: var(--vscode-debugConsole-warningForeground);
+                        color: var(--vscode-editor-background);
+                    }
+                    .field-value .description.segmentation {
+                        background-color: var(--vscode-debugConsole-infoForeground);
+                        color: var(--vscode-editor-background);
+                    }
+                    .field-value .bracket {
+                        color: var(--vscode-symbolIcon-arrayForeground);
+                        opacity: 0.8;
+                    }
+                    .field-value .bracket:first-of-type {
+                        margin-left: 12px;
+                    }
+                    .field-value .description {
+                        color: var(--vscode-textPreformat-foreground);
+                        opacity: 0.8;
+                    }
                     .object-container {
                         margin-left: 20px;
                         padding-left: 10px;
@@ -108,8 +210,17 @@ export class SCTE35Service {
                 </div>
                 <script>
                     const vscode = acquireVsCodeApi();
+                    const state = {
+                        parsedData: ${JSON.stringify(parsedData)},
+                        originalPayload: '${originalPayload}'
+                    };
+                    vscode.setState(state);
                     function showJson() {
-                        vscode.postMessage({ command: 'showJson' });
+                        const currentState = vscode.getState();
+                        vscode.postMessage({ 
+                            command: 'showJson',
+                            data: currentState
+                        });
                     }
                 </script>
             </body>
@@ -146,7 +257,7 @@ export class SCTE35Service {
         return typeof value;
     }
 
-    private formatValue(value: any, propertyName: string = ''): string {
+    private formatValue(value: any, propertyName: string = '', parentKey: string = ''): string {
         const type = this.getValueType(value);
         switch (type) {
             case 'string':
@@ -154,7 +265,25 @@ export class SCTE35Service {
             case 'number':
                 if (propertyName.toLowerCase().includes('duration')) {
                     const seconds = (value / 90000).toFixed(1);
-                    return `<span class="field-value number">${value} (${seconds} s)</span>`;
+                    return `<span class="field-value number">${value}<span class="description">${seconds} seconds</span></span>`;
+                }
+                // Check if we're inside a segmentationUpid object
+                if (parentKey === 'segmentationUpid') {
+                    const char = String.fromCharCode(value);
+                    return `<span class="field-value number">${value}<span class="description">${char}</span></span>`;
+                }
+                // Handle special numeric fields with mappings
+                if (propertyName === 'segmentationUpidType') {
+                    const desc = this.UPID_TYPES[value as keyof typeof this.UPID_TYPES] || 'Unknown';
+                    return `<span class="field-value number">${value}<span class="description mapped">${desc}</span></span>`;
+                }
+                if (propertyName === 'segmentationTypeId') {
+                    const desc = this.SEGMENTATION_TYPES[value as keyof typeof this.SEGMENTATION_TYPES] || 'Unknown';
+                    return `<span class="field-value number">${value}<span class="description segmentation">${desc}</span></span>`;
+                }
+                if (propertyName === 'spliceCommandType') {
+                    const desc = this.COMMAND_TYPES[value as keyof typeof this.COMMAND_TYPES] || 'Unknown';
+                    return `<span class="field-value number">${value}<span class="description mapped">${desc}</span></span>`;
                 }
                 return `<span class="field-value number">${value}</span>`;
             case 'boolean':
@@ -166,7 +295,7 @@ export class SCTE35Service {
         }
     }
 
-    private formatData(data: any, level: number = 0): string {
+    private formatData(data: any, level: number = 0, parentKey: string = ''): string {
         if (!data) return '<div>Invalid SCTE-35 data</div>';
 
         let html = '';
@@ -174,9 +303,10 @@ export class SCTE35Service {
         for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
             const formattedName = this.formatPropertyName(key);
             const type = this.getValueType(value);
+            const isLength = key.endsWith('Length');
 
             html += '<div class="field">';
-            html += `<span class="field-name">${formattedName}:</span>`;
+            html += `<span class="field-name${isLength ? ' length' : ''}">${formattedName}:</span>`;
 
             if (type === 'object' || type === 'array') {
                 html += '<div class="object-container">';
@@ -186,19 +316,19 @@ export class SCTE35Service {
                         html += `<span class="field-name">Item ${index + 1}:</span>`;
                         if (typeof item === 'object' && item !== null) {
                             html += '<div class="object-container">';
-                            html += this.formatData(item, level + 1);
+                            html += this.formatData(item, level + 1, key);
                             html += '</div>';
                         } else {
-                            html += this.formatValue(item, key);
+                            html += this.formatValue(item, key, parentKey);
                         }
                         html += '</div>';
                     });
                 } else {
-                    html += this.formatData(value, level + 1);
+                    html += this.formatData(value, level + 1, key);
                 }
                 html += '</div>';
             } else {
-                html += this.formatValue(value, key);
+                html += this.formatValue(value, key, parentKey);
             }
 
             html += '</div>';
@@ -207,7 +337,7 @@ export class SCTE35Service {
         return html;
     }
 
-    private extractTag(line: string): { tag: string, params: string } | null {
+    public extractTag(line: string): { tag: string, params: string } | null {
         const match = line.match(/^#((?:EXT-)?(?:X-)?[A-Z0-9-]+)(?::(.*))?$/);
         if (!match) return null;
         return {
@@ -284,7 +414,9 @@ export class SCTE35Service {
                     message => {
                         switch (message.command) {
                             case 'showJson':
-                                this.showJsonDocument(parsedData, payload);
+                                if (message.data) {
+                                    this.showJsonDocument(message.data.parsedData, message.data.originalPayload);
+                                }
                                 return;
                         }
                     },
