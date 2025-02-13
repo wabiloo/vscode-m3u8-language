@@ -202,7 +202,7 @@ export class RemotePlaylistService {
 
     private updateStatusBar(enabled: boolean, nextRefresh?: number) {
         if (!enabled) {
-            this.statusBarItem.text = "$(sync-disabled) Auto-refresh: Off";
+            this.statusBarItem.text = "M3U8 $(sync-ignored)";
             this.statusBarItem.show();
             if (this.countdownInterval) {
                 clearInterval(this.countdownInterval);
@@ -216,7 +216,7 @@ export class RemotePlaylistService {
                 const now = Date.now();
                 const remaining = Math.ceil((nextRefresh - now) / 1000);
                 if (remaining > 0) {
-                    this.statusBarItem.text = `$(sync) Auto-refresh: ${remaining}s`;
+                    this.statusBarItem.text = `M3U8 $(sync) ${remaining}s`;
                 }
             };
             
