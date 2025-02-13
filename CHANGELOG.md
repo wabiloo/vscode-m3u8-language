@@ -1,6 +1,9 @@
 # Change Log
 
-## [1.3.0] - 2025-02-08
+## [1.4.0] - 2025-02-13
+- SCTE35 parsing
+
+## [1.3.0] - 2025-02-12
 - Added remote playlist support
   - Open and view remote M3U8 playlists directly in VS Code
   - Clickable links to navigate between multi-variant playlists and variants

@@ -21,6 +21,15 @@ Visual Studio Code extension providing language support for M3U8 (HLS) files.
   - Download segments from media playlists with a single click
   - Smart link handling: opens playlists, downloads segments
 
+![Remote Playlist Support](https://raw.githubusercontent.com/wabiloo/vscode-m3u8-language/main/images/remote.gif)
+
+- SCTE-35 parsing:
+  - Parse a SCTE-35 payload with a command
+  - Parse SCTE-35 payloads in HLS tags in the current file (code lens)
+  - Display the results in a new tab, formatted or as JSON  
+
+![SCTE-35 Parsing](https://raw.githubusercontent.com/wabiloo/vscode-m3u8-language/main/images/scte35.png)
+
 - Configurable decorations:
   - Folding support for segments and associated tags
   - Colour banding of segments for easier reading
@@ -76,17 +85,11 @@ The extension provides the following commands:
 * `M3U8 / HLS: Open Remote Playlist`: Open a remote M3U8 playlist by entering its URL
 * `M3U8 / HLS: Refresh Current Playlist`: Manually refresh the current remote playlist
 * `M3U8 / HLS: Toggle Auto-Refresh`: Enable or disable automatic refreshing of the current remote playlist (not available for multi-variant playlists)
+* `M3U8 / HLS: Parse SCTE-35 Payload`: Parse a SCTE-35 payload and display the results in a new tab
 
 ## Examples
 
-The extension includes example files in the `examples` directory demonstrating various HLS playlist features:
-
-- Basic Media Playlist
-- Multivariant Playlist
-- Encrypted Media
-- Discontinuities
-- Alternative Renditions
-- And more...
+The extension includes example files in the `examples` directory demonstrating some of the features.
 
 ## Contributing
 
