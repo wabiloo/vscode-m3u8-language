@@ -69,14 +69,18 @@ export function activate(context: vscode.ExtensionContext) {
                     const line = document.lineAt(i);
                     const text = line.text;
                     
-                    if (text.includes('SCTE35')) {
-                        const range = new vscode.Range(i, 0, i, text.length);
-                        const command = {
-                            title: 'Parse SCTE-35',
-                            command: 'm3u8.parseSCTE35',
-                            arguments: [text]
-                        };
-                        codeLenses.push(new vscode.CodeLens(range, command));
+                    // Only show code lens for EXT tags with SCTE35 data
+                    if (text.startsWith('#EXT')) {
+                        const tagInfo = scte35Service.extractTag(text);
+                        if (tagInfo && tagDefinitions[tagInfo.tag]?.scte35) {
+                            const range = new vscode.Range(i, 0, i, text.length);
+                            const command = {
+                                title: 'Parse SCTE-35',
+                                command: 'm3u8.parseSCTE35',
+                                arguments: [text]
+                            };
+                            codeLenses.push(new vscode.CodeLens(range, command));
+                        }
                     }
                 }
                 
