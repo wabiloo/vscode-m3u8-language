@@ -9,8 +9,11 @@ export interface DefaultColors {
 }
 
 export interface HLSTagInfo {
-    section?: string;
-    url?: string;
+    documentation?: {
+        url: string;
+        section: string;
+        spec: string;
+    };
     summary: string;
     context: 'header' | 'segment' | 'footer' | 'multivariant';
     icon?: string;
@@ -35,6 +38,7 @@ export interface Configuration {
     showProgramDateTime: boolean;
     folding: boolean;
     gutterIcons: boolean;
+    showTagDocumentation: boolean;
     tagColors: Map<string, ColorScheme>;
     defaultColors: DefaultColors;
 } 

@@ -2,6 +2,7 @@
 
 ## [1.4.0] - 2025-02-13
 - SCTE35 parsing
+- More complete tag documentation, now also optional (through settings)
 
 ## [1.3.0] - 2025-02-12
 - Added remote playlist support

@@ -1,137 +1,284 @@
 {
     "EXTM3U": {
-        "section": "4.4.1.1",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.1.1",
+        "documentation": {
+            "section": "4.4.1.1",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.1.1",
+            "spec": "RFC8216"
+        },
         "summary": "Required first line of every Media Playlist and every Multivariant Playlist.",
         "context": "header"
     },
     "EXT-X-VERSION": {
-        "section": "4.4.1.2",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.1.2",
+        "documentation": {
+            "section": "4.4.1.2",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.1.2",
+            "spec": "RFC8216"
+        },
         "summary": "Indicates the compatibility version of the Playlist file. Must appear in all playlists containing tags or attributes that are version-specific.",
         "context": "header"
     },
     "EXTINF": {
-        "section": "4.4.2.1",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.1",
+        "documentation": {
+            "section": "4.4.2.1",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.1",
+            "spec": "RFC8216"
+        },
         "summary": "Specifies the duration of a Media Segment. Must be followed by the Media Segment URI. Duration is a decimal-floating-point or decimal-integer number in seconds.",
         "context": "segment"
     },
     "EXT-X-BYTERANGE": {
-        "section": "4.4.2.2",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.2",
+        "documentation": {
+            "section": "4.4.2.2",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.2",
+            "spec": "RFC8216"
+        },
         "summary": "Specifies a byte range into a resource for loading a Media Segment. Format is: n[@o] where n is the length in bytes and o is the offset from start.",
         "context": "segment"
     },
     "EXT-X-DISCONTINUITY": {
-        "section": "4.4.2.3",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.3",
+        "documentation": {
+            "section": "4.4.2.3",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.3",
+            "spec": "RFC8216"
+        },
         "summary": "Indicates a discontinuity between the Media Segment following it and the one preceding it. Can affect timing, encoding, or other stream attributes.",
         "context": "segment",
         "icon": "discontinuity"
     },
     "EXT-X-KEY": {
-        "section": "4.4.2.4",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.4",
+        "documentation": {
+            "section": "4.4.2.4",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.4",
+            "spec": "RFC8216"
+        },
         "summary": "Specifies how to decrypt Media Segments that follow it. Includes encryption method, key URI, initialization vector, and other encryption parameters.",
         "context": "segment"
     },
     "EXT-X-MAP": {
-        "section": "4.4.2.5",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.5",
+        "documentation": {
+            "section": "4.4.2.5",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.5",
+            "spec": "RFC8216"
+        },
         "summary": "Specifies how to obtain Media Initialization Section required to parse any Media Segments that follow it.",
         "context": "segment"
     },
     "EXT-X-PROGRAM-DATE-TIME": {
-        "section": "4.4.2.6",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.6",
+        "documentation": {
+            "section": "4.4.2.6",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.6",
+            "spec": "RFC8216"
+        },
         "summary": "Associates the first sample of a Media Segment with an absolute date and/or time. Format is ISO/IEC 8601:2004 date/time string.",
         "context": "segment"
     },
     "EXT-X-DATERANGE": {
-        "section": "4.4.2.7",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.7",
+        "documentation": {
+            "section": "4.4.2.7",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.7",
+            "spec": "RFC8216"
+        },
         "summary": "Associates a date range (time range) with metadata. Used for tracking events or program boundaries.",
         "context": "segment",
         "scte35": "hex"
     },
     "EXT-X-TARGETDURATION": {
-        "section": "4.4.3.1",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.3.1",
+        "documentation": {
+            "section": "4.4.3.1",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.3.1",
+            "spec": "RFC8216"
+        },
         "summary": "Specifies the maximum Media Segment duration. Required in Media Playlist. Value is a decimal-integer in seconds.",
         "context": "header"
     },
     "EXT-X-MEDIA-SEQUENCE": {
-        "section": "4.4.3.2",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.3.2",
+        "documentation": {
+            "section": "4.4.3.2",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.3.2",
+            "spec": "RFC8216"
+        },
         "summary": "Indicates the Media Sequence Number of the first Media Segment. If not present, defaults to 0.",
         "context": "header"
     },
     "EXT-X-DISCONTINUITY-SEQUENCE": {
-        "section": "4.4.3.3",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.3.3",
+        "documentation": {
+            "section": "4.4.3.3",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.3.3",
+            "spec": "RFC8216"
+        },
         "summary": "Allows synchronization between different Renditions of the same Variant Stream or different Variant Streams.",
         "context": "header"
     },
     "EXT-X-ENDLIST": {
-        "section": "4.4.3.4",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.3.4",
+        "documentation": {
+            "section": "4.4.3.4",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.3.4",
+            "spec": "RFC8216"
+        },
         "summary": "Indicates that no more Media Segments will be added to the Media Playlist. Required for Video-on-Demand.",
         "context": "footer"
     },
     "EXT-X-PLAYLIST-TYPE": {
-        "section": "4.4.3.5",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.3.5",
+        "documentation": {
+            "section": "4.4.3.5",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.3.5",
+            "spec": "RFC8216"
+        },
         "summary": "Provides mutability information about the Media Playlist file. Values can be EVENT or VOD.",
         "context": "header"
     },
     "EXT-X-I-FRAMES-ONLY": {
-        "section": "4.4.3.6",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.3.6",
+        "documentation": {
+            "section": "4.4.3.6",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.3.6",
+            "spec": "RFC8216"
+        },
         "summary": "Indicates that each Media Segment in the Playlist describes a single I-frame. Used for trick play support.",
         "context": "header"
     },
     "EXT-X-MEDIA": {
-        "section": "4.4.4.1",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.1",
+        "documentation": {
+            "section": "4.4.4.1",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.1",
+            "spec": "RFC8216"
+        },
         "summary": "Used in Multivariant Playlists to specify alternative Renditions. Commonly used for audio, subtitles, and closed captions.",
         "context": "multivariant"
     },
     "EXT-X-STREAM-INF": {
-        "section": "4.4.4.2",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.2",
+        "documentation": {
+            "section": "4.4.4.2",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.2",
+            "spec": "RFC8216"
+        },
         "summary": "Specifies a Variant Stream, which is a set of Renditions that can be combined to play the presentation. Must be followed by URI.",
         "context": "multivariant"
     },
     "EXT-X-I-FRAME-STREAM-INF": {
-        "section": "4.4.4.3",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.3",
+        "documentation": {
+            "section": "4.4.4.3",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.3",
+            "spec": "RFC8216"
+        },
         "summary": "Specifies a Variant Stream containing I-frames only. Used for trick play support without requiring additional bandwidth.",
         "context": "multivariant"
     },
     "EXT-X-SESSION-DATA": {
-        "section": "4.4.4.4",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.4",
+        "documentation": {
+            "section": "4.4.4.4",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.4",
+            "spec": "RFC8216"
+        },
         "summary": "Allows arbitrary session data to be carried in a Multivariant Playlist. Data can be inline or loaded from external URI.",
         "context": "multivariant"
     },
     "EXT-X-SESSION-KEY": {
-        "section": "4.4.4.5",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.5",
+        "documentation": {
+            "section": "4.4.4.5",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.5",
+            "spec": "RFC8216"
+        },
         "summary": "Allows encryption keys to be preloaded at session start, reducing load time. Functions like EXT-X-KEY but applies to all Variant Streams.",
         "context": "multivariant"
     },
     "EXT-X-INDEPENDENT-SEGMENTS": {
-        "section": "4.4.5.1",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.1",
+        "documentation": {
+            "section": "4.4.5.1",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.1",
+            "spec": "RFC8216"
+        },
         "summary": "Indicates that all media samples in a Media Segment can be decoded without information from other segments. Applies to all segments that follow.",
         "context": "header"
     },
     "EXT-X-START": {
-        "section": "4.4.5.2",
-        "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.2",
+        "documentation": {
+            "section": "4.4.5.2",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.2",
+            "spec": "RFC8216"
+        },
         "summary": "Indicates a preferred point at which to start playing a Playlist. Includes time offset and precise start point flag.",
         "context": "header"
+    },
+    "EXT-X-CONTENT-STEERING": {
+        "documentation": {
+            "section": "4.4.6.6",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.6.6",
+            "spec": "RFC8216"
+        },
+        "summary": "Allows a server to provide a Content Steering Manifest, enabling dynamic adjustment of content delivery paths.",
+        "context": "multivariant"
+    },
+    "EXT-X-PART": {
+        "documentation": {
+            "section": "4.4.2.8",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.8",
+            "spec": "RFC8216"
+        },
+        "summary": "Identifies a Partial Segment, which is a sub-range of a Media Segment, allowing for lower latency streaming.",
+        "context": "segment"
+    },
+    "EXT-X-PART-INF": {
+        "documentation": {
+            "section": "4.4.5.4",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.4",
+            "spec": "RFC8216"
+        },
+        "summary": "Specifies attributes that apply to all Partial Segments in a Playlist, such as the PART-TARGET duration.",
+        "context": "header"
+    },
+    "EXT-X-SERVER-CONTROL": {
+        "documentation": {
+            "section": "4.4.5.3",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.3",
+            "spec": "RFC8216"
+        },
+        "summary": "Provides directives that influence client playback behavior, such as specifying whether the server supports low-latency streaming.",
+        "context": "header"
+    },
+    "EXT-X-SKIP": {
+        "documentation": {
+            "section": "4.4.5.5",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.5",
+            "spec": "RFC8216"
+        },
+        "summary": "Instructs clients to skip over a specified number of Media Segments, useful for faster playlist updates.",
+        "context": "header"
+    },
+    "EXT-X-PRELOAD-HINT": {
+        "documentation": {
+            "section": "4.4.5.6",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.6",
+            "spec": "RFC8216"
+        },
+        "summary": "Provides a hint to the client about a resource that is expected to become available soon, enabling preloading and reducing latency.",
+        "context": "header"
+    },
+    "EXT-X-RENDITION-REPORT": {
+        "documentation": {
+            "section": "4.4.5.7",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.7",
+            "spec": "RFC8216"
+        },
+        "summary": "Allows a client to report its playback position in different Renditions, facilitating synchronization across variants.",
+        "context": "header"
+    },
+    "EXT-X-BITRATE": {
+        "documentation": {
+            "section": "4.4.4.8",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.8",
+            "spec": "RFC8216"
+        },
+        "summary": "Identifies the approximate segment bit rate of the Media Segment(s) to which it applies. It applies to every Media Segment between it and the next EXT-X-BITRATE tag in the Playlist file (or the end of the Playlist file) that does not have an EXT-X-BYTERANGE tag applied to it.",
+        "context": "segment"
+    },
+    "EXT-X-GAP": {
+        "documentation": {
+            "section": "4.4.4.7",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.7",
+            "spec": "RFC8216"
+        },
+        "summary": "Indicates that the segment URI to which it applies does not contain media data and SHOULD NOT be loaded by clients. It applies only to the next Media Segment.",
+        "context": "segment"
     },
     "EXT-X-CUE-OUT": {
         "summary": "Indicates that the following media segment is a splice out point.",

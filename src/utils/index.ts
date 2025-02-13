@@ -35,6 +35,7 @@ export function getConfiguration(): Configuration {
         showProgramDateTime: config.get<boolean>('showProgramDateTime', true),
         folding: config.get<boolean>('folding', true),
         gutterIcons: config.get<boolean>('gutterIcons', true),
+        showTagDocumentation: config.get<boolean>('showTagDocumentation', true),        
         tagColors,
         defaultColors: config.get<DefaultColors>('defaultColors', {
             odd: {

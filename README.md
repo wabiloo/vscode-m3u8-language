@@ -58,7 +58,7 @@ This extension contributes the following settings:
 * `m3u8.features.clickableLinks`: Enable clickable links for URIs in playlists (default: `true`)
 * `m3u8.features.tagColors`: List of tag colors in format `"TAG,borderColor,backgroundColor"` (default: `[]`)
 * `m3u8.features.defaultColors`: Default colors for odd/even segments when no tag colors match (see below)
-
+* `m3u8.features.showTagDocumentation`: Show documentation tooltips for HLS tags (default: `true`)
 ### Default Colors
 
 The `m3u8.features.defaultColors` setting allows you to customize the colors used for alternating segments when no tag colors match. The default values are:
