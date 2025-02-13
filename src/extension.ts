@@ -102,8 +102,34 @@ export function activate(context: vscode.ExtensionContext) {
             const uri = args[0];
             await remotePlaylistService.handleUriClick(uri);
         }),
-        vscode.commands.registerCommand('m3u8.parseSCTE35', (line: string) => {
-            scte35Service.parseSCTE35Line(line);
+        vscode.commands.registerCommand('m3u8.parseSCTE35', async (line?: string) => {
+            // If line is provided (from code lens), parse it directly
+            if (line) {
+                scte35Service.parseSCTE35Line(line);
+                return;
+            }
+
+            // Otherwise prompt user for input
+            const input = await vscode.window.showInputBox({
+                prompt: 'Enter SCTE35 data (base64 or hex format)',
+                placeHolder: 'e.g. /DAvAAAAAAAAAP/wFAUAAAABf+/+c2nALv4AKctgAAEBAQAA6Q4D9A== or 0xFC302F00...',
+                validateInput: (value) => {
+                    if (!value) return 'Please enter SCTE35 data';
+                    // Basic format validation
+                    if (!value.startsWith('/') && !value.startsWith('0x')) {
+                        return 'SCTE35 data must start with "/" (base64) or "0x" (hex)';
+                    }
+                    return null;
+                }
+            });
+
+            if (input) {
+                // Create a mock tag line based on the input format
+                const tagLine = input.startsWith('0x')
+                    ? `#EXT-X-DATERANGE:SCTE35-CMD=${input}`
+                    : `#EXT-OATCLS-SCTE35:${input}`;
+                scte35Service.parseSCTE35Line(tagLine);
+            }
         })
     );
 
