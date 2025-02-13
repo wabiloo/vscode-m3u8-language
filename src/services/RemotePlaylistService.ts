@@ -23,6 +23,16 @@ export class RemotePlaylistService {
         this.context.subscriptions.push(this.statusBarItem);
         this.updateStatusBar(false);
         this.initializeDecorationTypes();
+
+        // Subscribe to active editor changes
+        this.context.subscriptions.push(
+            vscode.window.onDidChangeActiveTextEditor(() => {
+                this.updateStatusBarVisibility();
+            })
+        );
+        
+        // Initial visibility check
+        this.updateStatusBarVisibility();
     }
 
     private initializeDecorationTypes() {
@@ -200,14 +210,37 @@ export class RemotePlaylistService {
         await this.enableAutoRefresh(docUri, playlistInfo);
     }
 
+    private isValidM3u8Document(editor?: vscode.TextEditor): boolean {
+        if (!editor) {
+            return false;
+        }
+
+        // Check if it's a remote M3U8 document
+        if (editor.document.uri.scheme === 'm3u8-remote') {
+            return true;
+        }
+
+        // Check if it's a local M3U8 file
+        return editor.document.fileName.toLowerCase().endsWith('.m3u8');
+    }
+
+    private updateStatusBarVisibility() {
+        const editor = vscode.window.activeTextEditor;
+        if (this.isValidM3u8Document(editor)) {
+            this.statusBarItem.show();
+        } else {
+            this.statusBarItem.hide();
+        }
+    }
+
     private updateStatusBar(enabled: boolean, nextRefresh?: number) {
         if (!enabled) {
             this.statusBarItem.text = "M3U8 $(sync-ignored)";
-            this.statusBarItem.show();
             if (this.countdownInterval) {
                 clearInterval(this.countdownInterval);
                 this.countdownInterval = undefined;
             }
+            this.updateStatusBarVisibility();
             return;
         }
 
