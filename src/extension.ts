@@ -7,12 +7,14 @@ import { M3U8FoldingRangeProvider } from './providers/FoldingRangeProvider';
 import { M3U8HoverProvider } from './providers/HoverProvider';
 import { M3U8RemoteContentProvider } from './providers/RemoteContentProvider';
 import { RemotePlaylistService } from './services/RemotePlaylistService';
+import { SCTE35Service } from './services/SCTE35Service';
 import { HLSTagInfo, RemoteDocumentContent, RemotePlaylistInfo } from './types';
 
 // Global state
 let outputChannel: vscode.OutputChannel;
 let decorationManager: DecorationManager;
 let remotePlaylistService: RemotePlaylistService;
+let scte35Service: SCTE35Service;
 const remotePlaylistMap = new Map<string, RemotePlaylistInfo>();
 const remoteDocumentContentMap = new Map<string, RemoteDocumentContent>();
 
@@ -45,6 +47,7 @@ export function activate(context: vscode.ExtensionContext) {
         context,
         log
     );
+    scte35Service = new SCTE35Service(tagDefinitions);
 
     // Register providers
     context.subscriptions.push(
@@ -57,7 +60,29 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.workspace.registerTextDocumentContentProvider(
             'm3u8-remote',
             new M3U8RemoteContentProvider(remoteDocumentContentMap)
-        )
+        ),
+        vscode.languages.registerCodeLensProvider('m3u8', {
+            provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
+                const codeLenses: vscode.CodeLens[] = [];
+                
+                for (let i = 0; i < document.lineCount; i++) {
+                    const line = document.lineAt(i);
+                    const text = line.text;
+                    
+                    if (text.includes('SCTE35')) {
+                        const range = new vscode.Range(i, 0, i, text.length);
+                        const command = {
+                            title: 'Parse SCTE-35',
+                            command: 'm3u8.parseSCTE35',
+                            arguments: [text]
+                        };
+                        codeLenses.push(new vscode.CodeLens(range, command));
+                    }
+                }
+                
+                return codeLenses;
+            }
+        })
     );
 
     // Register commands
@@ -72,6 +97,9 @@ export function activate(context: vscode.ExtensionContext) {
             }
             const uri = args[0];
             await remotePlaylistService.handleUriClick(uri);
+        }),
+        vscode.commands.registerCommand('m3u8.parseSCTE35', (line: string) => {
+            scte35Service.parseSCTE35Line(line);
         })
     );
 
@@ -110,6 +138,7 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {
     decorationManager.dispose();
     remotePlaylistService.dispose();
+    scte35Service.dispose();
     
     // Clean up all refresh intervals
     for (const [_, info] of remotePlaylistMap) {

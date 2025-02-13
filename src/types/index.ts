@@ -1,4 +1,3 @@
-
 export interface ColorScheme {
     backgroundColor: string;
     borderColor: string;
@@ -10,11 +9,12 @@ export interface DefaultColors {
 }
 
 export interface HLSTagInfo {
-    section: string;
-    url: string;
+    section?: string;
+    url?: string;
     summary: string;
-    context: 'header' | 'segment' | 'multivariant' | 'footer';
+    context: 'header' | 'segment' | 'footer' | 'multivariant';
     icon?: string;
+    scte35?: 'base64' | 'hex';
 }
 
 export interface RemotePlaylistInfo {

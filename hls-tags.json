@@ -52,7 +52,8 @@
         "section": "4.4.2.7",
         "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.7",
         "summary": "Associates a date range (time range) with metadata. Used for tracking events or program boundaries.",
-        "context": "segment"
+        "context": "segment",
+        "scte35": "hex"
     },
     "EXT-X-TARGETDURATION": {
         "section": "4.4.3.1",
@@ -145,11 +146,13 @@
     "EXT-OATCLS-SCTE35": {
         "summary": "Contains SCTE-35 data in base64 format",
         "context": "segment",
-        "icon": "cue"
+        "icon": "cue",
+        "scte35": "base64"
     },
     "EXT-X-SPLICEPOINT-SCTE35": {
         "summary": "Contains SCTE-35 data in base64 format",
         "context": "segment",
-        "icon": "cue"
+        "icon": "cue",
+        "scte35": "base64"
     }
 }

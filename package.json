@@ -42,6 +42,11 @@
         "command": "m3u8.toggleAutoRefresh",
         "title": "Toggle Auto-Refresh",
         "category": "M3U8 / HLS"
+      },
+      {
+        "command": "m3u8.parseSCTE35",
+        "title": "Parse SCTE-35 Data",
+        "category": "M3U8 / HLS"
       }
     ],
     "languages": [
@@ -178,5 +183,8 @@
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.85.0",
     "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "scte35": "^0.6.0"
   }
 }
