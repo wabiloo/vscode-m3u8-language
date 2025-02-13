@@ -21,3 +21,9 @@ segment2.ts
 #EXT-X-BITRATE:1800000
 #EXTINF:9.0,Title 3
 segment3.ts 
+
+# Group with non-Pantos tags
+#EXT-X-PROGRAM-DATE-TIME:2024-02-07T05:20:28.500Z
+#EXT-OATCLS-SCTE35:/DAgAAAAAAAAAP/wDwUAAAAAf/9+AFJlwAAAAAAAAM6PSpc=
+#EXTINF:9.0,Title 3
+segment4.ts 

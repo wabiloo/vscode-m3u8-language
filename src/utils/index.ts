@@ -88,6 +88,6 @@ export function formatDateTime(date: Date): string {
 }
 
 export function extractTag(line: string): string | null {
-    const match = line.match(/^#((?:EXT-X-)?[A-Z-]+)(?::|$)/);
+    const match = line.match(/^#((?:EXT-)?(?:X-)?[A-Z0-9-]+)(?::|$)/);
     return match ? match[1] : null;
 } 
