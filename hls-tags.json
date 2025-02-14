@@ -19,8 +19,8 @@
     },
     "EXTINF": {
         "documentation": {
-            "section": "4.4.2.1",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.1",
+            "section": "4.4.4.1",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.1",
             "spec": "RFC8216"
         },
         "summary": "Specifies the duration of a Media Segment. Must be followed by the Media Segment URI. Duration is a decimal-floating-point or decimal-integer number in seconds.",
@@ -28,8 +28,8 @@
     },
     "EXT-X-BYTERANGE": {
         "documentation": {
-            "section": "4.4.2.2",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.2",
+            "section": "4.4.4.2",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.2",
             "spec": "RFC8216"
         },
         "summary": "Specifies a byte range into a resource for loading a Media Segment. Format is: n[@o] where n is the length in bytes and o is the offset from start.",
@@ -37,8 +37,8 @@
     },
     "EXT-X-DISCONTINUITY": {
         "documentation": {
-            "section": "4.4.2.3",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.3",
+            "section": "4.4.4.3",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.3",
             "spec": "RFC8216"
         },
         "summary": "Indicates a discontinuity between the Media Segment following it and the one preceding it. Can affect timing, encoding, or other stream attributes.",
@@ -47,8 +47,8 @@
     },
     "EXT-X-KEY": {
         "documentation": {
-            "section": "4.4.2.4",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.4",
+            "section": "4.4.4.4",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.4",
             "spec": "RFC8216"
         },
         "summary": "Specifies how to decrypt Media Segments that follow it. Includes encryption method, key URI, initialization vector, and other encryption parameters.",
@@ -56,8 +56,8 @@
     },
     "EXT-X-MAP": {
         "documentation": {
-            "section": "4.4.2.5",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.5",
+            "section": "4.4.4.5",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.5",
             "spec": "RFC8216"
         },
         "summary": "Specifies how to obtain Media Initialization Section required to parse any Media Segments that follow it.",
@@ -65,8 +65,8 @@
     },
     "EXT-X-PROGRAM-DATE-TIME": {
         "documentation": {
-            "section": "4.4.2.6",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.6",
+            "section": "4.4.4.6",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.6",
             "spec": "RFC8216"
         },
         "summary": "Associates the first sample of a Media Segment with an absolute date and/or time. Format is ISO/IEC 8601:2004 date/time string.",
@@ -74,8 +74,8 @@
     },
     "EXT-X-DATERANGE": {
         "documentation": {
-            "section": "4.4.2.7",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.7",
+            "section": "4.4.5.1",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.1",
             "spec": "RFC8216"
         },
         "summary": "Associates a date range (time range) with metadata. Used for tracking events or program boundaries.",
@@ -138,8 +138,8 @@
     },
     "EXT-X-MEDIA": {
         "documentation": {
-            "section": "4.4.4.1",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.1",
+            "section": "4.4.6.1",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.6.1",
             "spec": "RFC8216"
         },
         "summary": "Used in Multivariant Playlists to specify alternative Renditions. Commonly used for audio, subtitles, and closed captions.",
@@ -147,8 +147,8 @@
     },
     "EXT-X-STREAM-INF": {
         "documentation": {
-            "section": "4.4.4.2",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.2",
+            "section": "4.4.6.2",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.6.2",
             "spec": "RFC8216"
         },
         "summary": "Specifies a Variant Stream, which is a set of Renditions that can be combined to play the presentation. Must be followed by URI.",
@@ -156,8 +156,8 @@
     },
     "EXT-X-I-FRAME-STREAM-INF": {
         "documentation": {
-            "section": "4.4.4.3",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.3",
+            "section": "4.4.6.3",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.6.3",
             "spec": "RFC8216"
         },
         "summary": "Specifies a Variant Stream containing I-frames only. Used for trick play support without requiring additional bandwidth.",
@@ -165,8 +165,8 @@
     },
     "EXT-X-SESSION-DATA": {
         "documentation": {
-            "section": "4.4.4.4",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.4",
+            "section": "4.4.6.4",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.6.4",
             "spec": "RFC8216"
         },
         "summary": "Allows arbitrary session data to be carried in a Multivariant Playlist. Data can be inline or loaded from external URI.",
@@ -174,8 +174,8 @@
     },
     "EXT-X-SESSION-KEY": {
         "documentation": {
-            "section": "4.4.4.5",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.5",
+            "section": "4.4.6.5",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.6.5",
             "spec": "RFC8216"
         },
         "summary": "Allows encryption keys to be preloaded at session start, reducing load time. Functions like EXT-X-KEY but applies to all Variant Streams.",
@@ -183,8 +183,8 @@
     },
     "EXT-X-INDEPENDENT-SEGMENTS": {
         "documentation": {
-            "section": "4.4.5.1",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.1",
+            "section": "4.4.2.1",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.1",
             "spec": "RFC8216"
         },
         "summary": "Indicates that all media samples in a Media Segment can be decoded without information from other segments. Applies to all segments that follow.",
@@ -192,8 +192,8 @@
     },
     "EXT-X-START": {
         "documentation": {
-            "section": "4.4.5.2",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.2",
+            "section": "4.4.2.2",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.2",
             "spec": "RFC8216"
         },
         "summary": "Indicates a preferred point at which to start playing a Playlist. Includes time offset and precise start point flag.",
@@ -210,8 +210,8 @@
     },
     "EXT-X-PART": {
         "documentation": {
-            "section": "4.4.2.8",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.2.8",
+            "section": "4.4.4.9",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.4.9",
             "spec": "RFC8216"
         },
         "summary": "Identifies a Partial Segment, which is a sub-range of a Media Segment, allowing for lower latency streaming.",
@@ -219,8 +219,8 @@
     },
     "EXT-X-PART-INF": {
         "documentation": {
-            "section": "4.4.5.4",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.4",
+            "section": "4.4.3.7",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.3.7",
             "spec": "RFC8216"
         },
         "summary": "Specifies attributes that apply to all Partial Segments in a Playlist, such as the PART-TARGET duration.",
@@ -228,8 +228,8 @@
     },
     "EXT-X-SERVER-CONTROL": {
         "documentation": {
-            "section": "4.4.5.3",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.3",
+            "section": "4.4.3.8",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.3.8",
             "spec": "RFC8216"
         },
         "summary": "Provides directives that influence client playback behavior, such as specifying whether the server supports low-latency streaming.",
@@ -237,8 +237,8 @@
     },
     "EXT-X-SKIP": {
         "documentation": {
-            "section": "4.4.5.5",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.5",
+            "section": "4.4.5.2",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.2",
             "spec": "RFC8216"
         },
         "summary": "Instructs clients to skip over a specified number of Media Segments, useful for faster playlist updates.",
@@ -246,8 +246,8 @@
     },
     "EXT-X-PRELOAD-HINT": {
         "documentation": {
-            "section": "4.4.5.6",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.6",
+            "section": "4.4.5.3",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.3",
             "spec": "RFC8216"
         },
         "summary": "Provides a hint to the client about a resource that is expected to become available soon, enabling preloading and reducing latency.",
@@ -255,8 +255,8 @@
     },
     "EXT-X-RENDITION-REPORT": {
         "documentation": {
-            "section": "4.4.5.7",
-            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.7",
+            "section": "4.4.5.4",
+            "url": "https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-16#section-4.4.5.4",
             "spec": "RFC8216"
         },
         "summary": "Allows a client to report its playback position in different Renditions, facilitating synchronization across variants.",
