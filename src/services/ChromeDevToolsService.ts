@@ -42,6 +42,8 @@ export class ChromeDevToolsService {
         body?: string;
         isValidM3U8?: boolean;
         isMultiVariant?: boolean;
+        mediaSequence?: number;
+        discontinuitySequence?: number;
         fromCache?: boolean;
         status?: number;
         statusText?: string;
@@ -54,6 +56,8 @@ export class ChromeDevToolsService {
         size: number;
         isValidM3U8: boolean;
         isMultiVariant: boolean;
+        mediaSequence?: number;
+        discontinuitySequence?: number;
     }>();
     private responseCounter = 0;
     private client: CDP.Client | undefined;
@@ -362,7 +366,22 @@ export class ChromeDevToolsService {
                         const isValidM3U8 = body.trimStart().startsWith('#EXTM3U');
                         // Check if it's a multi-variant playlist
                         const isMultiVariant = body.includes('#EXT-X-STREAM-INF:');
-                        this.log(`Response validation for ${params.response.url}: isValidM3U8=${isValidM3U8}, isMultiVariant=${isMultiVariant}, first few chars: ${body.trimStart().substring(0, 20)}`);
+                        
+                        // Extract media sequence if present
+                        let mediaSequence: number | undefined;
+                        const mediaSeqMatch = body.match(/#EXT-X-MEDIA-SEQUENCE:(\d+)/);
+                        if (mediaSeqMatch) {
+                            mediaSequence = parseInt(mediaSeqMatch[1], 10);
+                        }
+
+                        // Extract discontinuity sequence if present
+                        let discontinuitySequence: number | undefined;
+                        const discSeqMatch = body.match(/#EXT-X-DISCONTINUITY-SEQUENCE:(\d+)/);
+                        if (discSeqMatch) {
+                            discontinuitySequence = parseInt(discSeqMatch[1], 10);
+                        }
+
+                        this.log(`Response validation for ${params.response.url}: isValidM3U8=${isValidM3U8}, isMultiVariant=${isMultiVariant}, mediaSequence=${mediaSequence}, discontinuitySequence=${discontinuitySequence}, first few chars: ${body.trimStart().substring(0, 20)}`);
 
                         const id = `response-${this.responseCounter++}`;
                         this.responseCache.set(id, { 
@@ -371,7 +390,9 @@ export class ChromeDevToolsService {
                             timestamp,
                             size,
                             isValidM3U8,
-                            isMultiVariant
+                            isMultiVariant,
+                            mediaSequence,
+                            discontinuitySequence
                         });
                         this._onDidUpdateResponses.fire({ 
                             id, 
@@ -381,6 +402,8 @@ export class ChromeDevToolsService {
                             body,
                             isValidM3U8,
                             isMultiVariant,
+                            mediaSequence,
+                            discontinuitySequence,
                             fromCache: params.response.fromDiskCache || params.response.fromCache,
                             status: params.response.status,
                             statusText: params.response.statusText

@@ -104,6 +104,9 @@
         }
         .col-time { width: 80px; }
         .col-size { width: 80px; text-align: right; }
+        .col-seq { width: 60px; text-align: right; }
+        .col-disc { width: 60px; text-align: right; }
+        .col-tab { width: 20px; text-align: center; padding: 6px 0; }
         .col-url { width: auto; }
         .empty-state {
             text-align: center;
@@ -200,11 +203,6 @@
         tr:not(.has-tab):not(.is-preview) .tab-indicator {
             visibility: hidden;
         }
-        .col-tab { 
-            width: 20px; 
-            text-align: center;
-            padding: 6px 0;
-        }
         .invalid-m3u8 {
             color: var(--vscode-descriptionForeground);
             font-style: italic;
@@ -239,6 +237,8 @@
                     <th class="col-time" data-sort="timestamp">Time</th>
                     <th class="col-size" data-sort="size">Size</th>
                     <th class="col-tab"></th>
+                    <th class="col-seq" data-sort="mediaSequence">Seq.</th>
+                    <th class="col-disc" data-sort="discontinuitySequence">Disc.</th>
                     <th class="col-url" data-sort="url">URL</th>
                 </tr>
             </thead>
@@ -403,6 +403,8 @@
                         <td class="col-tab">
                             <span class="tab-indicator ${indicatorClass}"></span>
                         </td>
+                        <td class="col-seq">${response.mediaSequence !== undefined ? response.mediaSequence : ''}</td>
+                        <td class="col-disc">${response.discontinuitySequence !== undefined ? response.discontinuitySequence : ''}</td>
                         <td class="col-url ${urlClasses.join(' ')}">${response.url}</td>
                     </tr>
                 `;
@@ -545,6 +547,8 @@
                         isPreview: false,
                         isValidM3U8: message.isValidM3U8,
                         isMultiVariant: message.isMultiVariant,
+                        mediaSequence: message.mediaSequence,
+                        discontinuitySequence: message.discontinuitySequence,
                         fromCache: message.fromCache,
                         status: message.status,
                         statusText: message.statusText

@@ -134,6 +134,8 @@ export class NetworkInspectorProvider {
                     title: response.title,
                     isValidM3U8: response.isValidM3U8,
                     isMultiVariant: response.isMultiVariant,
+                    mediaSequence: response.mediaSequence,
+                    discontinuitySequence: response.discontinuitySequence,
                     fromCache: response.fromCache,
                     status: response.status,
                     statusText: response.statusText
