@@ -5,7 +5,9 @@ import { DecorationManager } from './decorations/DecorationManager';
 import { M3U8DocumentLinkProvider } from './providers/DocumentLinkProvider';
 import { M3U8FoldingRangeProvider } from './providers/FoldingRangeProvider';
 import { M3U8HoverProvider } from './providers/HoverProvider';
+import { NetworkInspectorProvider } from './providers/NetworkInspectorProvider';
 import { M3U8RemoteContentProvider } from './providers/RemoteContentProvider';
+import { ChromeDevToolsService } from './services/ChromeDevToolsService';
 import { RemotePlaylistService } from './services/RemotePlaylistService';
 import { SCTE35Service } from './services/SCTE35Service';
 import { HLSTagInfo, RemoteDocumentContent, RemotePlaylistInfo } from './types';
@@ -15,6 +17,8 @@ let outputChannel: vscode.OutputChannel;
 let decorationManager: DecorationManager;
 let remotePlaylistService: RemotePlaylistService;
 let scte35Service: SCTE35Service;
+let chromeDevToolsService: ChromeDevToolsService;
+let networkInspectorProvider: NetworkInspectorProvider;
 const remotePlaylistMap = new Map<string, RemotePlaylistInfo>();
 const remoteDocumentContentMap = new Map<string, RemoteDocumentContent>();
 
@@ -48,6 +52,8 @@ export function activate(context: vscode.ExtensionContext) {
         log
     );
     scte35Service = new SCTE35Service(tagDefinitions);
+    chromeDevToolsService = new ChromeDevToolsService(log);
+    networkInspectorProvider = new NetworkInspectorProvider(context, chromeDevToolsService, log);
 
     // Register providers
     context.subscriptions.push(
@@ -130,7 +136,8 @@ export function activate(context: vscode.ExtensionContext) {
                     : `#EXT-OATCLS-SCTE35:${input}`;
                 scte35Service.parseSCTE35Line(tagLine);
             }
-        })
+        }),
+        vscode.commands.registerCommand('m3u8.openNetworkInspector', () => networkInspectorProvider.show())
     );
 
     // Register event handlers
@@ -169,6 +176,8 @@ export function deactivate() {
     decorationManager.dispose();
     remotePlaylistService.dispose();
     scte35Service.dispose();
+    chromeDevToolsService.dispose();
+    networkInspectorProvider.dispose();
     
     // Clean up all refresh intervals
     for (const [_, info] of remotePlaylistMap) {

@@ -47,6 +47,11 @@
         "command": "m3u8.parseSCTE35",
         "title": "Parse SCTE-35 Data",
         "category": "M3U8 / HLS"
+      },
+      {
+        "command": "m3u8.openNetworkInspector",
+        "title": "Open Network Inspector",
+        "category": "M3U8 / HLS"
       }
     ],
     "languages": [
@@ -185,11 +190,13 @@
     "url": "https://github.com/wabiloo/vscode-m3u8-language"
   },
   "devDependencies": {
+    "@types/chrome-remote-interface": "^0.31.14",
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.85.0",
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "chrome-remote-interface": "^0.33.0",
     "scte35": "^0.6.0"
   }
 }
