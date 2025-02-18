@@ -1,7 +1,14 @@
 import { exec, spawn } from 'child_process';
 import CDP from 'chrome-remote-interface';
 import * as http from 'http';
+import { promisify } from 'util';
 import * as vscode from 'vscode';
+import * as zlib from 'zlib';
+
+// Add promisified zlib functions
+const gunzip = promisify(zlib.gunzip);
+const inflate = promisify(zlib.inflate);
+const inflateRaw = promisify(zlib.inflateRaw);
 
 // Add type declarations for CDP parameters
 interface CDPResponseReceivedParams {
@@ -10,6 +17,7 @@ interface CDPResponseReceivedParams {
         url: string;
         headers: { [key: string]: string };
         mimeType: string;
+        encodedDataLength: number;
     };
 }
 
@@ -21,9 +29,20 @@ interface ChromeTab {
 }
 
 export class ChromeDevToolsService {
-    private _onDidUpdateResponses = new vscode.EventEmitter<{ id: string; url: string }>();
+    private _onDidUpdateResponses = new vscode.EventEmitter<{ 
+        id: string; 
+        url: string;
+        timestamp: number;
+        size: number;
+        title?: string;
+    }>();
     readonly onDidUpdateResponses = this._onDidUpdateResponses.event;
-    private responseCache = new Map<string, { url: string; body: string }>();
+    private responseCache = new Map<string, { 
+        url: string; 
+        body: string;
+        timestamp: number;
+        size: number;
+    }>();
     private responseCounter = 0;
     private client: CDP.Client | undefined;
 
@@ -52,6 +71,8 @@ export class ChromeDevToolsService {
             const realTabs = tabs.filter(tab => 
                 !tab.url.startsWith('chrome:') && 
                 !tab.url.startsWith('devtools:') &&
+                !tab.url.startsWith('chrome-extension:') &&
+                !tab.url.startsWith('blob:') &&
                 tab.webSocketDebuggerUrl // Only tabs that can be debugged
             );
 
@@ -77,12 +98,13 @@ export class ChromeDevToolsService {
             // Let user pick a tab
             const items = realTabs.map(tab => ({
                 label: tab.title,
-                description: tab.url,
+                detail: tab.url,
                 tab
             }));
 
             const selected = await vscode.window.showQuickPick(items, {
-                placeHolder: 'Select a tab to monitor'
+                placeHolder: 'Select a tab to monitor',
+                matchOnDetail: true
             });
 
             return selected?.tab;
@@ -215,8 +237,21 @@ export class ChromeDevToolsService {
         throw new Error("User cancelled Chrome restart");
     }
 
+    private cleanup() {
+        if (this.client) {
+            this.client.close();
+            this.client = undefined;
+        }
+        this.responseCache.clear();
+        this.responseCounter = 0;
+    }
+
     async connect(): Promise<void> {
         this.log('Attempting to connect to Chrome...');
+        
+        // Clean up existing connection and cache
+        this.cleanup();
+
         const debuggingEnabled = await this.isChromeDebuggingEnabled();
         if (!debuggingEnabled) {
             this.log('Chrome debugging not enabled, attempting restart...');
@@ -239,20 +274,75 @@ export class ChromeDevToolsService {
             await this.client.Network.enable();
             this.log('Network domain enabled');
 
+            // Notify webview about the selected tab
+            this._onDidUpdateResponses.fire({
+                id: 'tab-info',
+                url: tab.url,
+                timestamp: Date.now(),
+                size: 0,
+                title: tab.title
+            });
+
             this.log('Setting up Network.responseReceived handler...');
             this.client.Network.responseReceived(async (params: CDPResponseReceivedParams) => {
                 const contentType = params.response.headers['content-type'] || '';
-                this.log(`Received response: ${params.response.url} (content-type: ${contentType})`);
+                const contentEncoding = params.response.headers['content-encoding'] || '';
+                this.log(`Received response: ${params.response.url} (content-type: ${contentType}, encoding: ${contentEncoding})`);
+                
                 if (contentType.includes('application/vnd.apple.mpegurl') || 
                     contentType.includes('application/x-mpegurl') ||
                     params.response.url.endsWith('.m3u8')) {
                     try {
                         this.log(`Found M3U8 response: ${params.response.url}`);
                         const response = await this.client!.Network.getResponseBody({ requestId: params.requestId });
+                        let body = response.body;
+
+                        // Get the response size (encoded length from CDP)
+                        const size = params.response.encodedDataLength;
+                        const timestamp = Date.now();
+
+                        // If the response is base64 encoded (binary data)
+                        if (response.base64Encoded) {
+                            const buffer = Buffer.from(body, 'base64');
+                            
+                            // Handle different compression methods
+                            try {
+                                if (contentEncoding.includes('gzip')) {
+                                    this.log('Decompressing gzip response...');
+                                    body = (await gunzip(buffer)).toString();
+                                } else if (contentEncoding.includes('deflate')) {
+                                    this.log('Decompressing deflate response...');
+                                    try {
+                                        body = (await inflate(buffer)).toString();
+                                    } catch {
+                                        // Some servers send raw deflate data
+                                        body = (await inflateRaw(buffer)).toString();
+                                    }
+                                } else {
+                                    // Just convert binary to string if no compression
+                                    body = buffer.toString();
+                                }
+                            } catch (decompressError) {
+                                this.log(`Error decompressing response: ${decompressError}`);
+                                // Fall back to raw buffer as string
+                                body = buffer.toString();
+                            }
+                        }
+
                         const id = `response-${this.responseCounter++}`;
-                        this.responseCache.set(id, { url: params.response.url, body: response.body });
-                        this._onDidUpdateResponses.fire({ id, url: params.response.url });
-                        this.log(`Cached M3U8 response with id ${id}`);
+                        this.responseCache.set(id, { 
+                            url: params.response.url, 
+                            body,
+                            timestamp,
+                            size
+                        });
+                        this._onDidUpdateResponses.fire({ 
+                            id, 
+                            url: params.response.url,
+                            timestamp,
+                            size
+                        });
+                        this.log(`Cached M3U8 response with id ${id} (${size} bytes)`);
                     } catch (err) {
                         this.log(`Error retrieving response body: ${err}`);
                     }
@@ -267,8 +357,30 @@ export class ChromeDevToolsService {
         }
     }
 
-    getResponse(id: string): { url: string; body: string } | undefined {
-        return this.responseCache.get(id);
+    async refreshPage(): Promise<void> {
+        if (!this.client) {
+            throw new Error('Not connected to Chrome');
+        }
+        try {
+            this.log('Refreshing page...');
+            await this.client.Page.enable();
+            await this.client.Page.reload();
+            this.log('Page refreshed');
+        } catch (error) {
+            const errMsg = `Error refreshing page: ${error}`;
+            this.log(errMsg);
+            throw error;
+        }
+    }
+
+    getResponse(id: string): { url: string; body: string; timestamp: number } | undefined {
+        const cached = this.responseCache.get(id);
+        if (!cached) { return undefined; }
+        return {
+            url: cached.url,
+            body: cached.body,
+            timestamp: cached.timestamp
+        };
     }
 
     dispose() {
