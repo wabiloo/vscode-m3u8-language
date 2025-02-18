@@ -78,6 +78,9 @@
         tr {
             cursor: pointer;
         }
+        tr:nth-child(even) {
+            background-color: rgba(128, 128, 128, 0.04);
+        }
         tr:hover {
             background-color: var(--vscode-list-hoverBackground);
         }
@@ -85,8 +88,19 @@
             background-color: var(--vscode-editor-findMatchHighlightBackground);
         }
         tr.highlighted:hover {
-            background: var(--vscode-editor-findMatchHighlightBackground);
+            background-color: var(--vscode-editor-findMatchHighlightBackground);
             filter: brightness(110%);
+        }
+        tr.selected {
+            background-color: var(--vscode-list-activeSelectionBackground) !important;
+            color: var(--vscode-list-activeSelectionForeground);
+        }
+        tr.selected:hover {
+            background-color: var(--vscode-list-activeSelectionBackground) !important;
+        }
+        tr.selected.highlighted {
+            background-color: var(--vscode-list-activeSelectionBackground) !important;
+            border: 1px solid var(--vscode-editor-findMatchHighlightBackground);
         }
         .col-time { width: 80px; }
         .col-size { width: 80px; text-align: right; }
@@ -191,15 +205,6 @@
             text-align: center;
             padding: 6px 0;
         }
-        tr:nth-child(even) {
-            background-color: rgba(128, 128, 128, 0.04);
-        }
-        tr:hover {
-            background-color: var(--vscode-list-hoverBackground);
-        }
-        tr.highlighted {
-            background-color: var(--vscode-editor-findMatchHighlightBackground);
-        }
         .invalid-m3u8 {
             color: var(--vscode-descriptionForeground);
             font-style: italic;
@@ -262,6 +267,7 @@
         let responses = [];
         let currentSort = { column: 'timestamp', direction: 'desc' };
         let pendingHighlights = new Set();
+        let selectedRowIndex = -1;
 
         function getSimplifiedUrl(url) {
             try {
@@ -354,7 +360,7 @@
             const searchText = searchInput.value;
             const filteredResponses = filterResponses(searchText);
             
-            responsesTable.innerHTML = filteredResponses.map(response => {
+            responsesTable.innerHTML = filteredResponses.map((response, index) => {
                 const isHighlighted = shouldHighlight(response);
                 const hasTab = response.hasTab;
                 const isPreview = response.isPreview;
@@ -372,6 +378,7 @@
                 if (isHighlighted) rowClasses.push('highlighted');
                 if (hasTab) rowClasses.push('has-tab');
                 if (isPreview) rowClasses.push('is-preview');
+                if (index === selectedRowIndex) rowClasses.push('selected');
 
                 // Build URL cell classes
                 const urlClasses = [];
@@ -435,10 +442,48 @@
             updateTable();
         });
 
-        // Handle row clicks
+        // Add keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            const rows = responsesTable.querySelectorAll('tr');
+            if (!rows.length) return;
+
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                e.preventDefault();
+
+                // If no row is selected, select the first one
+                if (selectedRowIndex === -1) {
+                    selectedRowIndex = 0;
+                } else {
+                    // Move selection up or down
+                    selectedRowIndex += e.key === 'ArrowUp' ? -1 : 1;
+                    // Ensure we stay within bounds
+                    selectedRowIndex = Math.max(0, Math.min(rows.length - 1, selectedRowIndex));
+                }
+
+                // Update the table to show the new selection
+                updateTable();
+
+                // Get the selected row and trigger the preview
+                const selectedRow = rows[selectedRowIndex];
+                if (selectedRow) {
+                    const id = selectedRow.dataset.id;
+                    vscode.postMessage({ command: 'openResponse', id });
+
+                    // Ensure the selected row is visible
+                    selectedRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
+            }
+        });
+
+        // Update click handler to also set selection
         responsesTable.addEventListener('click', (e) => {
             const row = e.target.closest('tr');
             if (!row) return;
+            
+            // Update selected row index
+            const rows = Array.from(responsesTable.querySelectorAll('tr'));
+            selectedRowIndex = rows.indexOf(row);
+            updateTable();
             
             const id = row.dataset.id;
             if (e.ctrlKey || e.metaKey) {
@@ -448,9 +493,10 @@
             }
         });
 
-        // Handle clear button click
+        // Reset selection when clearing or getting new responses
         document.getElementById('clear-button').addEventListener('click', () => {
             responses = [];
+            selectedRowIndex = -1;
             updateTable();
         });
 
