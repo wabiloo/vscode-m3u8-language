@@ -459,12 +459,8 @@ export class NetworkInspectorProvider {
         const timestamp = this.formatTimestamp(cached.timestamp);
         const tabTitle = `${basename} (${timestamp})`;
 
-        // Add comment line after #EXTM3U
-        let modifiedBody = cached.body;
-        if (modifiedBody.startsWith('#EXTM3U')) {
-            const date = new Date(cached.timestamp);
-            modifiedBody = modifiedBody.replace('#EXTM3U', `#EXTM3U\n# ${this.formatTimestamp(cached.timestamp)} - ${cached.url}`);
-        }
+        // Add comment as first line
+        let modifiedBody = `# ${basename} (${timestamp})\n# ${cached.url}\n${cached.body}`;
 
         if (forceNewTab || !this.currentEditor || this.currentEditor.document.isClosed) {
             // Create a new untitled document
