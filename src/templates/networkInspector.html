@@ -107,6 +107,7 @@
         .col-seq { width: 60px; text-align: right; }
         .col-disc { width: 60px; text-align: right; }
         .col-tab { width: 20px; text-align: center; padding: 6px 0; }
+        .col-name { width: 200px; }
         .col-url { width: auto; }
         .empty-state {
             text-align: center;
@@ -236,9 +237,10 @@
                 <tr>
                     <th class="col-time" data-sort="timestamp">Time</th>
                     <th class="col-size" data-sort="size">Size</th>
+                    <th class="col-seq" data-sort="mediaSequence" title="Media Sequence">Seq.</th>
+                    <th class="col-disc" data-sort="discontinuitySequence" title="Discontinuity Sequence">Disc.</th>
                     <th class="col-tab"></th>
-                    <th class="col-seq" data-sort="mediaSequence">Seq.</th>
-                    <th class="col-disc" data-sort="discontinuitySequence">Disc.</th>
+                    <th class="col-name" data-sort="name">Name</th>
                     <th class="col-url" data-sort="url">URL</th>
                 </tr>
             </thead>
@@ -269,12 +271,13 @@
         let pendingHighlights = new Set();
         let selectedRowIndex = -1;
 
-        function getSimplifiedUrl(url) {
+        function getBasename(url) {
             try {
                 const urlObj = new URL(url);
-                return `${urlObj.hostname}${urlObj.pathname}`;
+                const pathname = urlObj.pathname;
+                return pathname.split('/').pop() || urlObj.hostname;
             } catch {
-                return url;
+                return url.split('/').pop() || url;
             }
         }
 
@@ -287,7 +290,7 @@
             if (!url) return;
             const time = formatTime(new Date());
             headerTitle.textContent = title || 'Monitoring...';
-            headerUrl.textContent = `${getSimplifiedUrl(url)}`;
+            headerUrl.textContent = `${getBasename(url)}`;
         }
 
         function formatBytes(bytes, fromCache, status, statusText) {
@@ -400,11 +403,12 @@
                     <tr data-id="${response.id}" class="${rowClasses.join(' ')}">
                         <td class="col-time">${formatTimestamp(response.timestamp)}</td>
                         <td class="col-size ${sizeClasses.join(' ')}">${formatBytes(response.size, response.fromCache, response.status, response.statusText)}</td>
+                        <td class="col-seq">${response.mediaSequence !== undefined ? response.mediaSequence : ''}</td>
+                        <td class="col-disc">${response.discontinuitySequence !== undefined ? response.discontinuitySequence : ''}</td>
                         <td class="col-tab">
                             <span class="tab-indicator ${indicatorClass}"></span>
                         </td>
-                        <td class="col-seq">${response.mediaSequence !== undefined ? response.mediaSequence : ''}</td>
-                        <td class="col-disc">${response.discontinuitySequence !== undefined ? response.discontinuitySequence : ''}</td>
+                        <td class="col-name ${urlClasses.join(' ')}">${getBasename(response.url)}</td>
                         <td class="col-url ${urlClasses.join(' ')}">${response.url}</td>
                     </tr>
                 `;
