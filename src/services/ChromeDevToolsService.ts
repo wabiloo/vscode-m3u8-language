@@ -18,6 +18,8 @@ interface CDPResponseReceivedParams {
         headers: { [key: string]: string };
         mimeType: string;
         encodedDataLength: number;
+        fromDiskCache?: boolean;
+        fromCache?: boolean;
     };
 }
 
@@ -37,6 +39,7 @@ export class ChromeDevToolsService {
         title?: string;
         body?: string;
         isValidM3U8?: boolean;
+        fromCache?: boolean;
     }>();
     readonly onDidUpdateResponses = this._onDidUpdateResponses.event;
     private responseCache = new Map<string, { 
@@ -367,7 +370,8 @@ export class ChromeDevToolsService {
                             timestamp,
                             size,
                             body,
-                            isValidM3U8
+                            isValidM3U8,
+                            fromCache: params.response.fromDiskCache || params.response.fromCache
                         });
                         this.log(`Cached M3U8 response with id ${id} (${size} bytes)`);
                     } catch (err) {

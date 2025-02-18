@@ -132,7 +132,8 @@ export class NetworkInspectorProvider {
                     timestamp: response.timestamp,
                     size: response.size,
                     title: response.title,
-                    isValidM3U8: response.isValidM3U8
+                    isValidM3U8: response.isValidM3U8,
+                    fromCache: response.fromCache
                 });
             }
         });

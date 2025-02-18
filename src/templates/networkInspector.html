@@ -198,6 +198,7 @@
         }
         .invalid-m3u8 {
             color: var(--vscode-descriptionForeground);
+            font-style: italic;
         }
     </style>
 </head>
@@ -274,8 +275,9 @@
             headerUrl.textContent = `${getBasename(url)} (${time})`;
         }
 
-        function formatBytes(bytes) {
-            if (bytes === undefined || bytes === null || bytes === 0) return '0 B';
+        function formatBytes(bytes, fromCache) {
+            if (bytes === undefined || bytes === null) return '';
+            if (fromCache) return '(cached)';
             const k = 1024;
             const sizes = ['B', 'KB', 'MB', 'GB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -372,7 +374,7 @@
                 return `
                     <tr data-id="${response.id}" class="${rowClasses.join(' ')}">
                         <td class="col-time">${formatTimestamp(response.timestamp)}</td>
-                        <td class="col-size">${formatBytes(response.size)}</td>
+                        <td class="col-size">${formatBytes(response.size, response.fromCache)}</td>
                         <td class="col-tab">
                             <span class="tab-indicator ${indicatorClass}"></span>
                         </td>
@@ -477,7 +479,8 @@
                         size: message.size,
                         hasTab: false,
                         isPreview: false,
-                        isValidM3U8: message.isValidM3U8
+                        isValidM3U8: message.isValidM3U8,
+                        fromCache: message.fromCache
                     });
                     
                     sortResponses();
