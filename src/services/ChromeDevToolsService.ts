@@ -20,6 +20,8 @@ interface CDPResponseReceivedParams {
         encodedDataLength: number;
         fromDiskCache?: boolean;
         fromCache?: boolean;
+        status: number;
+        statusText: string;
     };
 }
 
@@ -39,7 +41,10 @@ export class ChromeDevToolsService {
         title?: string;
         body?: string;
         isValidM3U8?: boolean;
+        isMultiVariant?: boolean;
         fromCache?: boolean;
+        status?: number;
+        statusText?: string;
     }>();
     readonly onDidUpdateResponses = this._onDidUpdateResponses.event;
     private responseCache = new Map<string, { 
@@ -48,6 +53,7 @@ export class ChromeDevToolsService {
         timestamp: number;
         size: number;
         isValidM3U8: boolean;
+        isMultiVariant: boolean;
     }>();
     private responseCounter = 0;
     private client: CDP.Client | undefined;
@@ -354,7 +360,9 @@ export class ChromeDevToolsService {
 
                         // Check if the response is a valid M3U8 file
                         const isValidM3U8 = body.trimStart().startsWith('#EXTM3U');
-                        this.log(`Response validation for ${params.response.url}: isValidM3U8=${isValidM3U8}, first few chars: ${body.trimStart().substring(0, 20)}`);
+                        // Check if it's a multi-variant playlist
+                        const isMultiVariant = body.includes('#EXT-X-STREAM-INF:');
+                        this.log(`Response validation for ${params.response.url}: isValidM3U8=${isValidM3U8}, isMultiVariant=${isMultiVariant}, first few chars: ${body.trimStart().substring(0, 20)}`);
 
                         const id = `response-${this.responseCounter++}`;
                         this.responseCache.set(id, { 
@@ -362,7 +370,8 @@ export class ChromeDevToolsService {
                             body,
                             timestamp,
                             size,
-                            isValidM3U8
+                            isValidM3U8,
+                            isMultiVariant
                         });
                         this._onDidUpdateResponses.fire({ 
                             id, 
@@ -371,7 +380,10 @@ export class ChromeDevToolsService {
                             size,
                             body,
                             isValidM3U8,
-                            fromCache: params.response.fromDiskCache || params.response.fromCache
+                            isMultiVariant,
+                            fromCache: params.response.fromDiskCache || params.response.fromCache,
+                            status: params.response.status,
+                            statusText: params.response.statusText
                         });
                         this.log(`Cached M3U8 response with id ${id} (${size} bytes)`);
                     } catch (err) {

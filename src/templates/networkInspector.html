@@ -107,8 +107,12 @@
             flex-grow: 1;
         }
         .header-title {
-            font-weight: 600;
+            font-weight: 400;
             margin-bottom: 4px;
+
+            span {
+                font-weight: 800;
+            }
         }
         .header-url {
             color: var(--vscode-descriptionForeground);
@@ -200,17 +204,23 @@
             color: var(--vscode-descriptionForeground);
             font-style: italic;
         }
+        .error-response {
+            color: var(--vscode-errorForeground);
+        }
+        .multi-variant {
+            color: var(--vscode-charts-yellow);
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="header-text">
-            <div class="header-title" id="header-title"></div>
+            <div class="header-title">Monitoring: <span id="header-title"></span></div>
             <div class="header-url" id="header-url"></div>
         </div>
         <div style="display: flex; gap: 8px;">
-            <button class="button" id="choose-tab-button" title="Choose a tab from the browser to hook into">Select tab</button>
-            <button class="button" id="refresh-page-button" title="Refresh the content of the tab (⌘R)">Refresh page</button>
+            <button class="button" id="choose-tab-button" title="Choose a tab from the browser to hook into">Switch tab</button>
+            <button class="button" id="refresh-page-button" title="Refresh the content of the tab (⌘R)">Refresh tab</button>
         </div>
     </div>
     <div class="toolbar">
@@ -253,13 +263,12 @@
         let currentSort = { column: 'timestamp', direction: 'desc' };
         let pendingHighlights = new Set();
 
-        function getBasename(url) {
+        function getSimplifiedUrl(url) {
             try {
                 const urlObj = new URL(url);
-                const pathname = urlObj.pathname;
-                return pathname.split('/').pop() || urlObj.hostname;
+                return `${urlObj.hostname}${urlObj.pathname}`;
             } catch {
-                return url.split('/').pop() || url;
+                return url;
             }
         }
 
@@ -272,10 +281,13 @@
             if (!url) return;
             const time = formatTime(new Date());
             headerTitle.textContent = title || 'Monitoring...';
-            headerUrl.textContent = `${getBasename(url)} (${time})`;
+            headerUrl.textContent = `${getSimplifiedUrl(url)}`;
         }
 
-        function formatBytes(bytes, fromCache) {
+        function formatBytes(bytes, fromCache, status, statusText) {
+            if (status && status >= 300) {
+                return `${status} ${statusText}`;
+            }
             if (bytes === undefined || bytes === null) return '';
             if (fromCache) return '(cached)';
             const k = 1024;
@@ -364,17 +376,23 @@
                 // Build URL cell classes
                 const urlClasses = [];
                 if (response.isValidM3U8 === false) urlClasses.push('invalid-m3u8');
+                if (response.status >= 300) urlClasses.push('error-response');
+                if (response.isMultiVariant) urlClasses.push('multi-variant');
+
+                // Build size cell classes
+                const sizeClasses = [];
+                if (response.status >= 300) sizeClasses.push('error-response');
 
                 // Send debug info to VS Code
                 vscode.postMessage({ 
                     command: 'debug',
-                    message: `Rendering row: ${response.url}, isValidM3U8=${response.isValidM3U8}, urlClasses=[${urlClasses.join(', ')}]`
+                    message: `Rendering row: ${response.url}, isValidM3U8=${response.isValidM3U8}, isMultiVariant=${response.isMultiVariant}, status=${response.status}, urlClasses=[${urlClasses.join(', ')}]`
                 });
 
                 return `
                     <tr data-id="${response.id}" class="${rowClasses.join(' ')}">
                         <td class="col-time">${formatTimestamp(response.timestamp)}</td>
-                        <td class="col-size">${formatBytes(response.size, response.fromCache)}</td>
+                        <td class="col-size ${sizeClasses.join(' ')}">${formatBytes(response.size, response.fromCache, response.status, response.statusText)}</td>
                         <td class="col-tab">
                             <span class="tab-indicator ${indicatorClass}"></span>
                         </td>
@@ -470,7 +488,7 @@
                     // Send debug info to VS Code
                     vscode.postMessage({ 
                         command: 'debug',
-                        message: `Adding response: ${message.url}, isValidM3U8=${message.isValidM3U8}`
+                        message: `Adding response: ${message.url}, isValidM3U8=${message.isValidM3U8}, isMultiVariant=${message.isMultiVariant}`
                     });
                     responses.unshift({
                         id: message.id,
@@ -480,7 +498,10 @@
                         hasTab: false,
                         isPreview: false,
                         isValidM3U8: message.isValidM3U8,
-                        fromCache: message.fromCache
+                        isMultiVariant: message.isMultiVariant,
+                        fromCache: message.fromCache,
+                        status: message.status,
+                        statusText: message.statusText
                     });
                     
                     sortResponses();
