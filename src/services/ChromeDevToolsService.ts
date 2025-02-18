@@ -46,8 +46,23 @@ export class ChromeDevToolsService {
     }>();
     private responseCounter = 0;
     private client: CDP.Client | undefined;
+    private isPaused: boolean = false;
 
     constructor(private log: (message: string) => void) {}
+
+    togglePause(): boolean {
+        this.isPaused = !this.isPaused;
+        this.log(`Monitoring ${this.isPaused ? 'paused' : 'resumed'}`);
+        // Notify UI of pause state change
+        this._onDidUpdateResponses.fire({
+            id: 'pause-state',
+            url: '',
+            timestamp: Date.now(),
+            size: 0,
+            title: this.isPaused ? 'paused' : 'resumed'
+        });
+        return this.isPaused;
+    }
 
     private async getChromeTabs(): Promise<ChromeTab[]> {
         return new Promise((resolve, reject) => {
@@ -286,13 +301,15 @@ export class ChromeDevToolsService {
 
             this.log('Setting up Network.responseReceived handler...');
             this.client.Network.responseReceived(async (params: CDPResponseReceivedParams) => {
+                if (this.isPaused) {
+                    return; // Skip processing if paused
+                }
                 const contentType = params.response.headers['content-type'] || '';
                 const contentEncoding = params.response.headers['content-encoding'] || '';
-                this.log(`Received response: ${params.response.url} (content-type: ${contentType}, encoding: ${contentEncoding})`);
+                // this.log(`Received response: ${params.response.url} (content-type: ${contentType}, encoding: ${contentEncoding})`);
                 
-                if (contentType.includes('application/vnd.apple.mpegurl') || 
-                    contentType.includes('application/x-mpegurl') ||
-                    params.response.url.endsWith('.m3u8')) {
+                if (contentType.toLowerCase().includes('mpegurl') || 
+                    params.response.url.includes('.m3u8')) {
                     try {
                         this.log(`Found M3U8 response: ${params.response.url}`);
                         const response = await this.client!.Network.getResponseBody({ requestId: params.requestId });

@@ -49,6 +49,15 @@ export class NetworkInspectorProvider {
                 return;
             }
 
+            if (message.command === 'togglePause') {
+                try {
+                    this.chromeService.togglePause();
+                } catch (error) {
+                    this.log(`Failed to toggle pause: ${error}`);
+                }
+                return;
+            }
+
             if (message.command === 'refreshPage') {
                 // Refresh the current page
                 try {
@@ -241,7 +250,7 @@ export class NetworkInspectorProvider {
                         padding: 8px;
                         color: var(--vscode-descriptionForeground);
                         font-size: 0.9em;
-                        border-top: 1px solid var(--vscode-panel-border);
+                        // border-top: 1px solid var(--vscode-panel-border);
                         display: flex;
                         justify-content: space-between;
                         align-items: center;
@@ -266,6 +275,12 @@ export class NetworkInspectorProvider {
                     .button:active {
                         background: var(--vscode-button-background);
                         opacity: 0.8;
+                    }
+                    .button.resume {
+                        background: var(--vscode-testing-iconPassed);
+                    }
+                    .button.resume:hover {
+                        background: color-mix(in srgb, var(--vscode-testing-iconPassed) 85%, white);
                     }
                     .tab-indicator {
                         display: inline-block;
@@ -357,7 +372,10 @@ export class NetworkInspectorProvider {
                     <div>
                         <span class="keyboard-shortcut">${process.platform === 'darwin' ? '⌘' : 'Ctrl'}+Click</span> to open response in a new tab
                     </div>
-                    <button class="button" id="clear-button">Clear</button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="button" id="pause-button">Pause</button>
+                        <button class="button" id="clear-button">Clear</button>
+                    </div>
                 </div>
                 <script>
                     const vscode = acquireVsCodeApi();
@@ -367,6 +385,7 @@ export class NetworkInspectorProvider {
                     const highlightInput = document.getElementById('highlight');
                     const headerTitle = document.getElementById('header-title');
                     const headerUrl = document.getElementById('header-url');
+                    const pauseButton = document.getElementById('pause-button');
                     let responses = [];
                     let currentSort = { column: 'timestamp', direction: 'desc' };
 
@@ -546,9 +565,21 @@ export class NetworkInspectorProvider {
                         vscode.postMessage({ command: 'refreshPage' });
                     });
 
+                    // Handle pause button click
+                    pauseButton.addEventListener('click', () => {
+                        vscode.postMessage({ command: 'togglePause' });
+                    });
+
                     window.addEventListener('message', event => {
                         const message = event.data;
                         if (message.command === 'addResponse') {
+                            if (message.id === 'pause-state') {
+                                // Update pause button text and style based on state
+                                const isPaused = message.title === 'paused';
+                                pauseButton.textContent = isPaused ? 'Resume' : 'Pause';
+                                pauseButton.classList.toggle('resume', isPaused);
+                                return;
+                            }
                             if (message.id === 'tab-info') {
                                 // Clear existing responses when switching tabs
                                 responses = [];
