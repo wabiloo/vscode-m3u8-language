@@ -255,8 +255,8 @@ export class NetworkInspectorProvider {
                         <div class="header-url" id="header-url"></div>
                     </div>
                     <div style="display: flex; gap: 8px;">
-                    <button class="button" id="choose-tab-button" title="Choose a different tab">Choose tab</button>
-                    <button class="button" id="refresh-page-button" title="Refresh page (⌘R)">Refresh page</button>
+                    <button class="button" id="choose-tab-button" title="Choose a tab from the browser to hook into">Select tab</button>
+                    <button class="button" id="refresh-page-button" title="Refresh the content of the tab (⌘R)">Refresh page</button>
                     </div>
                 </div>
                 <div class="toolbar">
@@ -471,8 +471,8 @@ export class NetworkInspectorProvider {
             
             this.currentEditor = await vscode.window.showTextDocument(doc, {
                 preview: false,
-                viewColumn: vscode.ViewColumn.Beside,
-                preserveFocus: true
+                preserveFocus: true,
+                viewColumn: vscode.ViewColumn.Beside
             });
         } else {
             // Update content of existing document
