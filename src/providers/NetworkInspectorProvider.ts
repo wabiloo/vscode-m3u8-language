@@ -57,6 +57,18 @@ export class NetworkInspectorProvider {
                 return;
             }
 
+            if (message.command === 'getResponseBody') {
+                const cached = this.chromeService.getResponse(message.id);
+                if (cached) {
+                    this.panel?.webview.postMessage({
+                        command: 'responseBody',
+                        id: message.id,
+                        body: cached.body
+                    });
+                }
+                return;
+            }
+
             const cached = this.chromeService.getResponse(message.id);
             if (!cached) { return; }
 
@@ -189,6 +201,13 @@ export class NetworkInspectorProvider {
                     tr:hover {
                         background: var(--vscode-list-hoverBackground);
                     }
+                    tr.highlighted {
+                        background: var(--vscode-editor-findMatchHighlightBackground);
+                    }
+                    tr.highlighted:hover {
+                        background: var(--vscode-editor-findMatchHighlightBackground);
+                        filter: brightness(110%);
+                    }
                     .col-time { width: 80px; }
                     .col-size { width: 80px; text-align: right; }
                     .col-url { width: auto; }
@@ -260,7 +279,8 @@ export class NetworkInspectorProvider {
                     </div>
                 </div>
                 <div class="toolbar">
-                    <input type="text" class="search-box" placeholder="Filter URLs..." id="search">
+                    <input type="text" class="search-box" placeholder="Filter request URLs..." id="search">
+                    <input type="text" class="search-box" placeholder="Highlight responses containing..." id="highlight">
                 </div>
                 <div class="table-container">
                     <table>
@@ -286,6 +306,7 @@ export class NetworkInspectorProvider {
                     const emptyState = document.getElementById('empty-state');
                     const responsesTable = document.getElementById('responses');
                     const searchInput = document.getElementById('search');
+                    const highlightInput = document.getElementById('highlight');
                     const headerTitle = document.getElementById('header-title');
                     const headerUrl = document.getElementById('header-url');
                     let responses = [];
@@ -356,17 +377,41 @@ export class NetworkInspectorProvider {
                         );
                     }
 
+                    function shouldHighlight(response) {
+                        const highlightText = highlightInput.value.toLowerCase();
+                        if (!highlightText) return false;
+                        
+                        // If we already have the body in our cache, use it
+                        if (response.body) {
+                            return response.body.toLowerCase().includes(highlightText);
+                        }
+                        
+                        // Otherwise, request it and mark as pending
+                        pendingHighlights.add(response.id);
+                        vscode.postMessage({ 
+                            command: 'getResponseBody', 
+                            id: response.id 
+                        });
+                        
+                        return false;
+                    }
+
+                    let pendingHighlights = new Set();
+
                     function updateTable() {
                         const searchText = searchInput.value;
                         const filteredResponses = filterResponses(searchText);
                         
-                        responsesTable.innerHTML = filteredResponses.map(response => \`
-                            <tr data-id="\${response.id}">
-                                <td class="col-time">\${formatTimestamp(response.timestamp)}</td>
-                                <td class="col-size">\${formatBytes(response.size)}</td>
-                                <td class="col-url">\${response.url}</td>
-                            </tr>
-                        \`).join('');
+                        responsesTable.innerHTML = filteredResponses.map(response => {
+                            const isHighlighted = shouldHighlight(response);
+                            return \`
+                                <tr data-id="\${response.id}" class="\${isHighlighted ? 'highlighted' : ''}">
+                                    <td class="col-time">\${formatTimestamp(response.timestamp)}</td>
+                                    <td class="col-size">\${formatBytes(response.size)}</td>
+                                    <td class="col-url">\${response.url}</td>
+                                </tr>
+                            \`;
+                        }).join('');
 
                         emptyState.style.display = filteredResponses.length ? 'none' : 'block';
                     }
@@ -393,8 +438,12 @@ export class NetworkInspectorProvider {
                         });
                     });
 
-                    // Set up filtering
+                    // Set up filtering and highlighting
                     searchInput.addEventListener('input', () => {
+                        updateTable();
+                    });
+
+                    highlightInput.addEventListener('input', () => {
                         updateTable();
                     });
 
@@ -445,6 +494,16 @@ export class NetworkInspectorProvider {
                                 
                                 sortResponses();
                                 updateTable();
+                            }
+                        } else if (message.command === 'responseBody') {
+                            // Update the response body in our cache
+                            const response = responses.find(r => r.id === message.id);
+                            if (response) {
+                                response.body = message.body;
+                                if (pendingHighlights.has(message.id)) {
+                                    pendingHighlights.delete(message.id);
+                                    updateTable();
+                                }
                             }
                         }
                     });

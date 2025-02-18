@@ -35,6 +35,7 @@ export class ChromeDevToolsService {
         timestamp: number;
         size: number;
         title?: string;
+        body?: string;
     }>();
     readonly onDidUpdateResponses = this._onDidUpdateResponses.event;
     private responseCache = new Map<string, { 
@@ -340,7 +341,8 @@ export class ChromeDevToolsService {
                             id, 
                             url: params.response.url,
                             timestamp,
-                            size
+                            size,
+                            body
                         });
                         this.log(`Cached M3U8 response with id ${id} (${size} bytes)`);
                     } catch (err) {
