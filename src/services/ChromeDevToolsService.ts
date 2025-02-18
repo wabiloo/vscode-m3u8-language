@@ -36,6 +36,7 @@ export class ChromeDevToolsService {
         size: number;
         title?: string;
         body?: string;
+        isValidM3U8?: boolean;
     }>();
     readonly onDidUpdateResponses = this._onDidUpdateResponses.event;
     private responseCache = new Map<string, { 
@@ -43,6 +44,7 @@ export class ChromeDevToolsService {
         body: string;
         timestamp: number;
         size: number;
+        isValidM3U8: boolean;
     }>();
     private responseCounter = 0;
     private client: CDP.Client | undefined;
@@ -347,19 +349,25 @@ export class ChromeDevToolsService {
                             }
                         }
 
+                        // Check if the response is a valid M3U8 file
+                        const isValidM3U8 = body.trimStart().startsWith('#EXTM3U');
+                        this.log(`Response validation for ${params.response.url}: isValidM3U8=${isValidM3U8}, first few chars: ${body.trimStart().substring(0, 20)}`);
+
                         const id = `response-${this.responseCounter++}`;
                         this.responseCache.set(id, { 
                             url: params.response.url, 
                             body,
                             timestamp,
-                            size
+                            size,
+                            isValidM3U8
                         });
                         this._onDidUpdateResponses.fire({ 
                             id, 
                             url: params.response.url,
                             timestamp,
                             size,
-                            body
+                            body,
+                            isValidM3U8
                         });
                         this.log(`Cached M3U8 response with id ${id} (${size} bytes)`);
                     } catch (err) {

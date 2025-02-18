@@ -88,6 +88,9 @@ export class NetworkInspectorProvider {
             } else if (message.command === 'openResponseNewTab') {
                 await this.showResponseInTab({ ...cached, id: message.id }, true);
             }
+
+            // Add handler for webview messages
+            this.handleWebviewMessage(message);
         });
 
         // Handle panel disposal
@@ -337,6 +340,10 @@ export class NetworkInspectorProvider {
                     tr.highlighted {
                         background-color: var(--vscode-editor-findMatchHighlightBackground);
                     }
+
+                    .invalid-m3u8 {
+                        color: var(--vscode-descriptionForeground);
+                    }
                 </style>
             </head>
             <body>
@@ -491,14 +498,31 @@ export class NetworkInspectorProvider {
                             } else if (isPreview) {
                                 indicatorClass = 'preview';
                             }
+
+                            // Build row classes
+                            const rowClasses = [];
+                            if (isHighlighted) rowClasses.push('highlighted');
+                            if (hasTab) rowClasses.push('has-tab');
+                            if (isPreview) rowClasses.push('is-preview');
+
+                            // Build URL cell classes
+                            const urlClasses = [];
+                            if (response.isValidM3U8 === false) urlClasses.push('invalid-m3u8');
+
+                            // Send debug info to VS Code
+                            vscode.postMessage({ 
+                                command: 'debug',
+                                message: \`Rendering row: \${response.url}, isValidM3U8=\${response.isValidM3U8}, urlClasses=[\${urlClasses.join(', ')}]\`
+                            });
+
                             return \`
-                                <tr data-id="\${response.id}" class="\${isHighlighted ? 'highlighted' : ''} \${hasTab ? 'has-tab' : ''} \${isPreview ? 'is-preview' : ''}">
+                                <tr data-id="\${response.id}" class="\${rowClasses.join(' ')}">
                                     <td class="col-time">\${formatTimestamp(response.timestamp)}</td>
                                     <td class="col-size">\${formatBytes(response.size)}</td>
                                     <td class="col-tab">
                                         <span class="tab-indicator \${indicatorClass}"></span>
                                     </td>
-                                    <td class="col-url">\${response.url}</td>
+                                    <td class="col-url \${urlClasses.join(' ')}">\${response.url}</td>
                                 </tr>
                             \`;
                         }).join('');
@@ -587,13 +611,19 @@ export class NetworkInspectorProvider {
                                 // Update header with selected tab info
                                 updateHeader(message.url, message.title);
                             } else {
+                                // Remove console.log and use VS Code logging
+                                vscode.postMessage({ 
+                                    command: 'debug',
+                                    message: \`Adding response: \${message.url}, isValidM3U8=\${message.isValidM3U8}\`
+                                });
                                 responses.unshift({
                                     id: message.id,
                                     url: message.url,
                                     timestamp: message.timestamp,
                                     size: message.size,
                                     hasTab: false,
-                                    isPreview: false
+                                    isPreview: false,
+                                    isValidM3U8: message.isValidM3U8
                                 });
                                 
                                 sortResponses();
@@ -741,5 +771,12 @@ export class NetworkInspectorProvider {
             this.panel.dispose();
         }
         this.disposables.forEach(d => d.dispose());
+    }
+
+    // Add handler for webview messages
+    private handleWebviewMessage(message: any) {
+        if (message.command === 'debug') {
+            this.log(message.message);
+        }
     }
 } 
