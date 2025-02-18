@@ -6,6 +6,8 @@ export class NetworkInspectorProvider {
     private disposables: vscode.Disposable[] = [];
     private responseListener: vscode.Disposable | undefined;
     private currentEditor: vscode.TextEditor | undefined;
+    private openResponseIds: Set<string> = new Set();
+    private currentPreviewId: string | undefined;
 
     constructor(
         private context: vscode.ExtensionContext,
@@ -73,9 +75,9 @@ export class NetworkInspectorProvider {
             if (!cached) { return; }
 
             if (message.command === 'openResponse') {
-                await this.showResponseInTab(cached, false);
+                await this.showResponseInTab({ ...cached, id: message.id }, false);
             } else if (message.command === 'openResponseNewTab') {
-                await this.showResponseInTab(cached, true);
+                await this.showResponseInTab({ ...cached, id: message.id }, true);
             }
         });
 
@@ -192,17 +194,17 @@ export class NetworkInspectorProvider {
                         content: '▼';
                     }
                     td {
-                        padding: 6px 8px;
+                        padding: 4px 8px;
                         border-bottom: 1px solid var(--vscode-panel-border);
                     }
                     tr {
                         cursor: pointer;
                     }
                     tr:hover {
-                        background: var(--vscode-list-hoverBackground);
+                        background-color: var(--vscode-list-hoverBackground);
                     }
                     tr.highlighted {
-                        background: var(--vscode-editor-findMatchHighlightBackground);
+                        background-color: var(--vscode-editor-findMatchHighlightBackground);
                     }
                     tr.highlighted:hover {
                         background: var(--vscode-editor-findMatchHighlightBackground);
@@ -265,6 +267,61 @@ export class NetworkInspectorProvider {
                         background: var(--vscode-button-background);
                         opacity: 0.8;
                     }
+                    .tab-indicator {
+                        display: inline-block;
+                        width: 8px;
+                        height: 8px;
+                        border-radius: 50%;
+                        margin: 0 auto;
+                        vertical-align: middle;
+                        position: relative;
+                    }
+
+                    .tab-indicator.permanent {
+                        background-color: var(--vscode-charts-blue);
+                    }
+
+                    .tab-indicator.preview {
+                        border: 1px solid var(--vscode-charts-blue);
+                        background: transparent;
+                    }
+
+                    .tab-indicator.combined {
+                        background-color: var(--vscode-charts-blue);
+                    }
+
+                    .tab-indicator.combined::after {
+                        content: '';
+                        position: absolute;
+                        top: -2px;
+                        left: -2px;
+                        right: -2px;
+                        bottom: -2px;
+                        border: 1px solid var(--vscode-charts-blue);
+                        border-radius: 50%;
+                    }
+                    
+                    tr:not(.has-tab):not(.is-preview) .tab-indicator {
+                        visibility: hidden;
+                    }
+
+                    .col-tab { 
+                        width: 20px; 
+                        text-align: center;
+                        padding: 6px 0;
+                    }
+
+                    tr:nth-child(even) {
+                        background-color: rgba(128, 128, 128, 0.04);
+                    }
+
+                    tr:hover {
+                        background-color: var(--vscode-list-hoverBackground);
+                    }
+
+                    tr.highlighted {
+                        background-color: var(--vscode-editor-findMatchHighlightBackground);
+                    }
                 </style>
             </head>
             <body>
@@ -288,6 +345,7 @@ export class NetworkInspectorProvider {
                             <tr>
                                 <th class="col-time" data-sort="timestamp">Time</th>
                                 <th class="col-size" data-sort="size">Size</th>
+                                <th class="col-tab"></th>
                                 <th class="col-url" data-sort="url">URL</th>
                             </tr>
                         </thead>
@@ -404,10 +462,23 @@ export class NetworkInspectorProvider {
                         
                         responsesTable.innerHTML = filteredResponses.map(response => {
                             const isHighlighted = shouldHighlight(response);
+                            const hasTab = response.hasTab;
+                            const isPreview = response.isPreview;
+                            let indicatorClass = '';
+                            if (hasTab && isPreview) {
+                                indicatorClass = 'combined';
+                            } else if (hasTab) {
+                                indicatorClass = 'permanent';
+                            } else if (isPreview) {
+                                indicatorClass = 'preview';
+                            }
                             return \`
-                                <tr data-id="\${response.id}" class="\${isHighlighted ? 'highlighted' : ''}">
+                                <tr data-id="\${response.id}" class="\${isHighlighted ? 'highlighted' : ''} \${hasTab ? 'has-tab' : ''} \${isPreview ? 'is-preview' : ''}">
                                     <td class="col-time">\${formatTimestamp(response.timestamp)}</td>
                                     <td class="col-size">\${formatBytes(response.size)}</td>
+                                    <td class="col-tab">
+                                        <span class="tab-indicator \${indicatorClass}"></span>
+                                    </td>
                                     <td class="col-url">\${response.url}</td>
                                 </tr>
                             \`;
@@ -489,7 +560,9 @@ export class NetworkInspectorProvider {
                                     id: message.id,
                                     url: message.url,
                                     timestamp: message.timestamp,
-                                    size: message.size
+                                    size: message.size,
+                                    hasTab: false,
+                                    isPreview: false
                                 });
                                 
                                 sortResponses();
@@ -505,6 +578,16 @@ export class NetworkInspectorProvider {
                                     updateTable();
                                 }
                             }
+                        } else if (message.command === 'updateOpenState') {
+                            const response = responses.find(r => r.id === message.id);
+                            if (response) {
+                                if (message.isPermanent) {
+                                    response.hasTab = message.isOpen;
+                                } else {
+                                    response.isPreview = message.isOpen;
+                                }
+                                updateTable();
+                            }
                         }
                     });
                 </script>
@@ -513,13 +596,29 @@ export class NetworkInspectorProvider {
         `;
     }
 
-    private async showResponseInTab(cached: { url: string; body: string; timestamp: number }, forceNewTab: boolean = false) {
+    private notifyOpenStateChanged(id: string, isOpen: boolean, isPermanent: boolean = false) {
+        if (this.panel) {
+            this.panel.webview.postMessage({
+                command: 'updateOpenState',
+                id,
+                isOpen,
+                isPermanent
+            });
+        }
+    }
+
+    private async showResponseInTab(cached: { url: string; body: string; timestamp: number; id: string }, forceNewTab: boolean = false) {
         const basename = this.getBasename(cached.url);
         const timestamp = this.formatTimestamp(cached.timestamp);
         const tabTitle = `${basename} (${timestamp})`;
 
         // Add comment as first line
-        let modifiedBody = `# ${basename} (${timestamp})\n# ${cached.url}\n${cached.body}`;
+        let modifiedBody = `# (${timestamp}) ${basename}\n# ${cached.url}\n${cached.body}`;
+
+        // Clear previous preview tab indicator if this is not a new tab
+        if (!forceNewTab && this.currentPreviewId && this.currentPreviewId !== cached.id) {
+            this.notifyOpenStateChanged(this.currentPreviewId, false, false);
+        }
 
         if (forceNewTab || !this.currentEditor || this.currentEditor.document.isClosed) {
             // Create a new untitled document
@@ -529,10 +628,31 @@ export class NetworkInspectorProvider {
             });
             
             this.currentEditor = await vscode.window.showTextDocument(doc, {
-                preview: false,
+                preview: true,
                 preserveFocus: true,
                 viewColumn: vscode.ViewColumn.Beside
             });
+
+            if (!forceNewTab) {
+                this.currentPreviewId = cached.id;
+            }
+
+            // Track that this response has an open tab
+            this.openResponseIds.add(cached.id);
+            this.notifyOpenStateChanged(cached.id, true, forceNewTab);
+
+            // Listen for document close
+            const disposable = vscode.workspace.onDidCloseTextDocument(closedDoc => {
+                if (closedDoc === doc) {
+                    this.openResponseIds.delete(cached.id);
+                    this.notifyOpenStateChanged(cached.id, false, forceNewTab);
+                    if (this.currentPreviewId === cached.id) {
+                        this.currentPreviewId = undefined;
+                    }
+                    disposable.dispose();
+                }
+            });
+            this.disposables.push(disposable);
         } else {
             // Update content of existing document
             const edit = new vscode.WorkspaceEdit();
@@ -542,6 +662,21 @@ export class NetworkInspectorProvider {
             );
             edit.replace(this.currentEditor.document.uri, fullRange, modifiedBody);
             await vscode.workspace.applyEdit(edit);
+            
+            if (!forceNewTab) {
+                this.currentPreviewId = cached.id;
+            }
+
+            // Update the indicator for the new response
+            this.openResponseIds.add(cached.id);
+            this.notifyOpenStateChanged(cached.id, true, forceNewTab);
+
+            // Ensure the editor stays in the same column without focus
+            await vscode.window.showTextDocument(this.currentEditor.document, {
+                preview: true,
+                preserveFocus: true,
+                viewColumn: this.currentEditor.viewColumn
+            });
         }
     }
 
