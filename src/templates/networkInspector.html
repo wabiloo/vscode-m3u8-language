@@ -429,9 +429,17 @@
             try {
                 const urlObj = new URL(url);
                 const pathname = urlObj.pathname;
-                return pathname.split('/').pop() || urlObj.hostname;
+                const parts = pathname.split('/').filter(part => part);
+                if (parts.length >= 2) {
+                    return parts.slice(-2).join('/');
+                }
+                return parts.pop() || urlObj.hostname;
             } catch {
-                return url.split('/').pop() || url;
+                const parts = url.split('/').filter(part => part);
+                if (parts.length >= 2) {
+                    return parts.slice(-2).join('/');
+                }
+                return parts.pop() || url;
             }
         }
 
