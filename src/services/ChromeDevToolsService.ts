@@ -442,7 +442,7 @@ export class ChromeDevToolsService {
                 const contentEncoding = params.response.headers['content-encoding'] || '';
                 
                 if (contentType.toLowerCase().includes('mpegurl') || 
-                    params.response.url.includes('.m3u8')) {
+                    (params.response.url && new URL(params.response.url).pathname.includes('.m3u8'))) {
                     try {
                         this.log(`Found M3U8 response: ${params.response.url}`);
                         const response = await client.Network.getResponseBody({ requestId: params.requestId });
