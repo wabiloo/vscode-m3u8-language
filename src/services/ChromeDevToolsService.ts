@@ -127,13 +127,92 @@ export class ChromeDevToolsService {
     private async selectTab(): Promise<ChromeTab | undefined> {
         try {
             const tabs = await this.getChromeTabs();
-            const realTabs = tabs.filter(tab => 
-                !tab.url.startsWith('chrome:') && 
-                !tab.url.startsWith('devtools:') &&
-                !tab.url.startsWith('chrome-extension:') &&
-                !tab.url.startsWith('blob:') &&
-                tab.webSocketDebuggerUrl // Only tabs that can be debugged
-            );
+            const realTabs = tabs.filter(tab => {
+                // Must have a debugging URL
+                if (!tab.webSocketDebuggerUrl) {
+                    return false;
+                }
+
+                // Filter out various special Chrome pages and UI elements
+                const excludePatterns = [
+                    'chrome:', 
+                    'devtools:', 
+                    'chrome-extension:',
+                    'blob:',
+                    'about:blank',
+                    'chrome-search:',
+                    'edge:', 
+                    'view-source:',
+                    'data:', 
+                    'file://'
+                ];
+
+                // Filter out common advertising, analytics, and widget domains
+                const excludeDomains = [
+                    'imasdk.googleapis.com',
+                    'doubleclick.net',
+                    'js.driftt.com',
+                    'googletagmanager.com',
+                    'google-analytics.com',
+                    'facebook.com',
+                    'fb.com',
+                    'hotjar.com',
+                    'intercom.io',
+                    'crisp.chat',
+                    'tawk.to',
+                    'zendesk.com',
+                    'livechatinc.com',
+                    'ads.google.com',
+                    'adservice.google.',
+                    'analytics.',
+                    'tracking.',
+                    'pixel.',
+                    'cdn.',
+                    'widget.'
+                ];
+
+                // Check if URL starts with any excluded pattern
+                if (excludePatterns.some(pattern => tab.url.startsWith(pattern))) {
+                    return false;
+                }
+
+                // Check if URL contains any excluded domain
+                try {
+                    const url = new URL(tab.url);
+                    if (excludeDomains.some(domain => url.hostname.includes(domain))) {
+                        return false;
+                    }
+                } catch (e) {
+                    // If URL parsing fails, skip this tab
+                    return false;
+                }
+
+                // Filter out empty or invalid titles
+                if (!tab.title || tab.title === 'about:blank') {
+                    return false;
+                }
+
+                // Filter out common service worker and extension pages
+                const excludeTitlePatterns = [
+                    'Service Worker',
+                    'Extension:',
+                    'Extensions',
+                    'Chrome Extensions',
+                    'Developer Tools',
+                    'Google Tag Manager',
+                    'Google Analytics',
+                    'Advertisement',
+                    'Chat Widget',
+                    'LiveChat',
+                    'Tracking Pixel'
+                ];
+
+                if (excludeTitlePatterns.some(pattern => tab.title.includes(pattern))) {
+                    return false;
+                }
+
+                return true;
+            });
 
             if (realTabs.length === 0) {
                 // No suitable tabs found, create a new one
