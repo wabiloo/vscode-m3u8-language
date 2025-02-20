@@ -16,6 +16,85 @@
             margin: 0;
             box-sizing: border-box;
         }
+        .header {
+            margin-bottom: 12px;
+            color: var(--vscode-foreground);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .header-text {
+            flex-grow: 1;
+        }
+        .header-title {
+            font-weight: 400;
+            margin-bottom: 4px;
+        }
+        .tab-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .tab-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 4px;
+            background: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-panel-border);
+        }
+        .tab-item.active {
+            background: var(--vscode-list-activeSelectionBackground);
+            color: var(--vscode-list-activeSelectionForeground);
+        }
+        .tab-color {
+            width: 12px;
+            height: 12px;
+        }
+        .tab-label {
+            cursor: pointer;
+            user-select: none;
+            padding: 2px 4px;
+            border: 1px solid transparent;
+        }
+        .tab-label:hover {
+            opacity: 0.8;
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 2px;
+        }
+        .tab-label.editing {
+            background: var(--vscode-input-background);
+            border: 1px solid var(--vscode-focusBorder);
+            border-radius: 2px;
+        }
+        .tab-label input {
+            background: transparent;
+            border: none;
+            color: inherit;
+            font-family: inherit;
+            font-size: inherit;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+            outline: none;
+        }
+        .tab-actions {
+            display: flex;
+            gap: 4px;
+        }
+        .tab-button {
+            padding: 2px 4px;
+            background: transparent;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            opacity: 0.7;
+        }
+        .tab-button:hover {
+            opacity: 1;
+        }
         .toolbar {
             margin-bottom: 10px;
             display: flex;
@@ -107,34 +186,13 @@
         .col-seq { width: 60px; text-align: right; }
         .col-disc { width: 60px; text-align: right; }
         .col-tab { width: 20px; text-align: center; padding: 6px 0; }
+        .col-chrome-tab { width: 20px; text-align: center; padding: 6px 0; }
         .col-name { width: 200px; }
         .col-url { width: auto; }
         .empty-state {
             text-align: center;
             padding: 40px;
             color: var(--vscode-descriptionForeground);
-        }
-        .header {
-            margin-bottom: 12px;
-            color: var(--vscode-foreground);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .header-text {
-            flex-grow: 1;
-        }
-        .header-title {
-            font-weight: 400;
-            margin-bottom: 4px;
-
-            span {
-                font-weight: 800;
-            }
-        }
-        .header-url {
-            color: var(--vscode-descriptionForeground);
-            font-size: 0.9em;
         }
         .legend {
             margin-top: 8px;
@@ -181,6 +239,13 @@
             vertical-align: middle;
             position: relative;
         }
+        .chrome-tab-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            margin: 0 auto;
+            vertical-align: middle;
+        }
         .tab-indicator.permanent {
             background-color: var(--vscode-charts-blue);
         }
@@ -219,14 +284,13 @@
 <body>
     <div class="header">
         <div class="header-text">
-            <div class="header-title">Monitoring: <span id="header-title"></span></div>
-            <div class="header-url" id="header-url"></div>
+            <div class="header-title">M3U8 Network Inspector</div>
         </div>
         <div style="display: flex; gap: 8px;">
-            <button class="button" id="choose-tab-button" title="Choose a tab from the browser to hook into">Switch tab</button>
-            <button class="button" id="refresh-page-button" title="Refresh the content of the browser tab (⌘R)">Refresh tab</button>
+            <button class="button" id="add-tab-button" title="Add a tab from the browser to monitor">Add tab</button>
         </div>
     </div>
+    <div id="tab-bar" class="tab-bar"></div>
     <div class="toolbar">
         <input type="text" class="search-box" placeholder="Filter request URLs..." id="search">
         <input type="text" class="search-box" placeholder="Highlight responses containing..." id="highlight">
@@ -235,6 +299,7 @@
         <table>
             <thead>
                 <tr>
+                    <th class="col-chrome-tab"></th>
                     <th class="col-time" data-sort="timestamp">Time</th>
                     <th class="col-size" data-sort="size">Size</th>
                     <th class="col-seq" data-sort="mediaSequence" title="Media Sequence">Seq.</th>
@@ -263,13 +328,14 @@
         const responsesTable = document.getElementById('responses');
         const searchInput = document.getElementById('search');
         const highlightInput = document.getElementById('highlight');
-        const headerTitle = document.getElementById('header-title');
-        const headerUrl = document.getElementById('header-url');
+        const tabBar = document.getElementById('tab-bar');
         const pauseButton = document.getElementById('pause-button');
         let responses = [];
         let currentSort = { column: 'timestamp', direction: 'desc' };
         let pendingHighlights = new Set();
         let selectedRowIndex = -1;
+        let activeTabId = null;
+        let tabs = new Map();
 
         function getBasename(url) {
             try {
@@ -286,11 +352,123 @@
             return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
         }
 
-        function updateHeader(url, title) {
-            if (!url) return;
-            const time = formatTime(new Date());
-            headerTitle.textContent = title || 'Monitoring...';
-            headerUrl.textContent = `${getBasename(url)}`;
+        function updateTabBar() {
+            if (tabs.size === 0) {
+                tabBar.innerHTML = '';
+                return;
+            }
+
+            tabBar.innerHTML = Array.from(tabs.values()).map(tab => `
+                <div class="tab-item ${tab.id === activeTabId ? 'active' : ''}" data-tab-id="${tab.id}">
+                    <div class="tab-color" style="background-color: ${tab.color}"></div>
+                    <span class="tab-label" title="${tab.url}">${tab.label || 'Unnamed Tab'}</span>
+                    <div class="tab-actions">
+                        <button class="tab-button" title="Filter responses to show only this tab">
+                            <span>🔍</span>
+                        </button>
+                        <button class="tab-button" title="Refresh this tab">
+                            <span>↻</span>
+                        </button>
+                        <button class="tab-button" title="Stop monitoring this tab">
+                            <span>✕</span>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            // Add event listeners
+            tabBar.querySelectorAll('.tab-item').forEach(item => {
+                const tabId = item.dataset.tabId;
+                const tab = tabs.get(tabId);
+                if (!tab) return;
+
+                // Label click for renaming
+                const labelElement = item.querySelector('.tab-label');
+                if (labelElement) {
+                    labelElement.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Create input element
+                        const input = document.createElement('input');
+                        input.value = tab.label || '';
+                        input.spellcheck = false;
+                        
+                        // Replace text with input
+                        const originalText = labelElement.textContent;
+                        labelElement.textContent = '';
+                        labelElement.appendChild(input);
+                        labelElement.classList.add('editing');
+                        
+                        // Focus input and select all text
+                        input.focus();
+                        input.select();
+
+                        // Handle input events
+                        const finishEditing = (save) => {
+                            labelElement.classList.remove('editing');
+                            if (save && input.value !== tab.label) {
+                                vscode.postMessage({ 
+                                    command: 'setTabLabel',
+                                    tabId,
+                                    label: input.value
+                                });
+                            } else {
+                                labelElement.textContent = originalText;
+                            }
+                        };
+
+                        input.addEventListener('blur', () => finishEditing(true));
+                        input.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                finishEditing(true);
+                            } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                finishEditing(false);
+                            }
+                        });
+                    });
+                }
+
+                // Filter button
+                const filterButton = item.querySelector('.tab-button:nth-child(1)');
+                if (filterButton) {
+                    filterButton.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        activeTabId = activeTabId === tabId ? null : tabId;
+                        updateTabBar();
+                        updateTable();
+                    });
+                }
+
+                // Refresh button
+                const refreshButton = item.querySelector('.tab-button:nth-child(2)');
+                if (refreshButton) {
+                    refreshButton.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        vscode.postMessage({ 
+                            command: 'refreshPage',
+                            tabId
+                        });
+                    });
+                }
+
+                // Close button
+                const closeButton = item.querySelector('.tab-button:nth-child(3)');
+                if (closeButton) {
+                    closeButton.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        vscode.postMessage({ 
+                            command: 'removeTab',
+                            tabId
+                        });
+                    });
+                }
+            });
         }
 
         function formatBytes(bytes, fromCache, status, statusText) {
@@ -335,9 +513,12 @@
         }
 
         function filterResponses(searchText) {
-            return responses.filter(response => 
-                response.url.toLowerCase().includes(searchText.toLowerCase())
-            );
+            return responses.filter(response => {
+                if (activeTabId && response.tabId !== activeTabId) {
+                    return false;
+                }
+                return response.url.toLowerCase().includes(searchText.toLowerCase());
+            });
         }
 
         function shouldHighlight(response) {
@@ -393,14 +574,14 @@
                 const sizeClasses = [];
                 if (response.status >= 300) sizeClasses.push('error-response');
 
-                // Send debug info to VS Code
-                vscode.postMessage({ 
-                    command: 'debug',
-                    message: `Rendering row: ${response.url}, isValidM3U8=${response.isValidM3U8}, isMultiVariant=${response.isMultiVariant}, status=${response.status}, urlClasses=[${urlClasses.join(', ')}]`
-                });
+                // Get tab color for indicator
+                const tabColor = response.tabColor || (tabs.get(response.tabId)?.color);
 
                 return `
                     <tr data-id="${response.id}" class="${rowClasses.join(' ')}">
+                        <td class="col-chrome-tab">
+                            <span class="chrome-tab-indicator" style="background-color: ${tabColor}"></span>
+                        </td>
                         <td class="col-time">${formatTimestamp(response.timestamp)}</td>
                         <td class="col-size ${sizeClasses.join(' ')}">${formatBytes(response.size, response.fromCache, response.status, response.statusText)}</td>
                         <td class="col-seq">${response.mediaSequence !== undefined ? response.mediaSequence : ''}</td>
@@ -506,13 +687,9 @@
             updateTable();
         });
 
-        // Handle refresh button clicks
-        document.getElementById('choose-tab-button').addEventListener('click', () => {
-            vscode.postMessage({ command: 'chooseTab' });
-        });
-
-        document.getElementById('refresh-page-button').addEventListener('click', () => {
-            vscode.postMessage({ command: 'refreshPage' });
+        // Handle add tab button clicks
+        document.getElementById('add-tab-button').addEventListener('click', () => {
+            vscode.postMessage({ command: 'addTab' });
         });
 
         // Handle pause button click
@@ -531,17 +708,32 @@
                     return;
                 }
                 if (message.id === 'tab-info') {
-                    // Clear existing responses when switching tabs
-                    responses = [];
-                    updateTable();
-                    // Update header with selected tab info
-                    updateHeader(message.url, message.title);
-                } else {
-                    // Send debug info to VS Code
-                    vscode.postMessage({ 
-                        command: 'debug',
-                        message: `Adding response: ${message.url}, isValidM3U8=${message.isValidM3U8}, isMultiVariant=${message.isMultiVariant}`
+                    // Add or update tab info
+                    tabs.set(message.tabId, {
+                        id: message.tabId,
+                        url: message.url,
+                        color: message.tabColor,
+                        label: message.tabLabel
                     });
+                    updateTabBar();
+                } else if (message.id === 'tab-removed') {
+                    // Remove tab and its responses
+                    tabs.delete(message.tabId);
+                    responses = responses.filter(r => r.tabId !== message.tabId);
+                    if (activeTabId === message.tabId) {
+                        activeTabId = null;
+                    }
+                    updateTabBar();
+                    updateTable();
+                } else if (message.id === 'tab-label-update') {
+                    // Update tab label
+                    const tab = tabs.get(message.tabId);
+                    if (tab) {
+                        tab.label = message.tabLabel;
+                        updateTabBar();
+                    }
+                } else {
+                    // Add new response
                     responses.unshift({
                         id: message.id,
                         url: message.url,
@@ -555,7 +747,9 @@
                         discontinuitySequence: message.discontinuitySequence,
                         fromCache: message.fromCache,
                         status: message.status,
-                        statusText: message.statusText
+                        statusText: message.statusText,
+                        tabId: message.tabId,
+                        tabColor: message.tabColor
                     });
                     
                     sortResponses();

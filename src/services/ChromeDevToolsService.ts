@@ -47,6 +47,9 @@ export class ChromeDevToolsService {
         fromCache?: boolean;
         status?: number;
         statusText?: string;
+        tabId?: string;
+        tabColor?: string;
+        tabLabel?: string;
     }>();
     readonly onDidUpdateResponses = this._onDidUpdateResponses.event;
     private responseCache = new Map<string, { 
@@ -58,12 +61,37 @@ export class ChromeDevToolsService {
         isMultiVariant: boolean;
         mediaSequence?: number;
         discontinuitySequence?: number;
+        tabId?: string;
     }>();
     private responseCounter = 0;
-    private client: CDP.Client | undefined;
     private isPaused: boolean = false;
 
+    // Track multiple CDP sessions
+    private sessions = new Map<string, {
+        client: CDP.Client;
+        tab: ChromeTab;
+        color: string;
+        label?: string;
+    }>();
+
+    // Available colors for tabs
+    private readonly colors = [
+        '#4CAF50', // Green
+        '#2196F3', // Blue
+        '#FFC107', // Amber
+        '#E91E63', // Pink
+        '#9C27B0', // Purple
+        '#FF5722', // Deep Orange
+        '#00BCD4', // Cyan
+        '#795548', // Brown
+    ];
+
     constructor(private log: (message: string) => void) {}
+
+    private getNextColor(): string {
+        const usedColors = new Set(Array.from(this.sessions.values()).map(s => s.color));
+        return this.colors.find(c => !usedColors.has(c)) || this.colors[0];
+    }
 
     togglePause(): boolean {
         this.isPaused = !this.isPaused;
@@ -269,20 +297,12 @@ export class ChromeDevToolsService {
     }
 
     private cleanup() {
-        if (this.client) {
-            this.client.close();
-            this.client = undefined;
-        }
-        this.responseCache.clear();
-        this.responseCounter = 0;
+        // Remove this method as it's no longer needed
     }
 
     async connect(): Promise<void> {
         this.log('Attempting to connect to Chrome...');
         
-        // Clean up existing connection and cache
-        this.cleanup();
-
         const debuggingEnabled = await this.isChromeDebuggingEnabled();
         if (!debuggingEnabled) {
             this.log('Chrome debugging not enabled, attempting restart...');
@@ -295,39 +315,58 @@ export class ChromeDevToolsService {
             if (!tab) {
                 throw new Error('No tab selected');
             }
+
+            // Check if we're already monitoring this tab
+            if (this.sessions.has(tab.id)) {
+                throw new Error('Already monitoring this tab');
+            }
+
             this.log(`Selected tab: ${tab.title} (${tab.url})`);
 
             this.log('Establishing CDP connection...');
-            this.client = await CDP({ target: tab.webSocketDebuggerUrl });
+            const client = await CDP({ target: tab.webSocketDebuggerUrl });
             this.log('CDP connection established');
 
             this.log('Enabling Network domain...');
-            await this.client.Network.enable();
+            await client.Network.enable();
+            await client.Page.enable();  // Enable Page domain for refresh
             this.log('Network domain enabled');
 
-            // Notify webview about the selected tab
+            // Add the new session
+            const color = this.getNextColor();
+            const label = tab.title || this.getBasename(tab.url);
+            this.sessions.set(tab.id, {
+                client,
+                tab,
+                color,
+                label
+            });
+
+            // Notify webview about the new tab
             this._onDidUpdateResponses.fire({
                 id: 'tab-info',
                 url: tab.url,
                 timestamp: Date.now(),
                 size: 0,
-                title: tab.title
+                title: tab.title,
+                tabId: tab.id,
+                tabColor: color,
+                tabLabel: label
             });
 
             this.log('Setting up Network.responseReceived handler...');
-            this.client.Network.responseReceived(async (params: CDPResponseReceivedParams) => {
+            client.Network.responseReceived(async (params: CDPResponseReceivedParams) => {
                 if (this.isPaused) {
                     return; // Skip processing if paused
                 }
                 const contentType = params.response.headers['content-type'] || '';
                 const contentEncoding = params.response.headers['content-encoding'] || '';
-                // this.log(`Received response: ${params.response.url} (content-type: ${contentType}, encoding: ${contentEncoding})`);
                 
                 if (contentType.toLowerCase().includes('mpegurl') || 
                     params.response.url.includes('.m3u8')) {
                     try {
                         this.log(`Found M3U8 response: ${params.response.url}`);
-                        const response = await this.client!.Network.getResponseBody({ requestId: params.requestId });
+                        const response = await client.Network.getResponseBody({ requestId: params.requestId });
                         let body = response.body;
 
                         // Get the response size (encoded length from CDP)
@@ -392,7 +431,8 @@ export class ChromeDevToolsService {
                             isValidM3U8,
                             isMultiVariant,
                             mediaSequence,
-                            discontinuitySequence
+                            discontinuitySequence,
+                            tabId: tab.id
                         });
                         this._onDidUpdateResponses.fire({ 
                             id, 
@@ -406,7 +446,10 @@ export class ChromeDevToolsService {
                             discontinuitySequence,
                             fromCache: params.response.fromDiskCache || params.response.fromCache,
                             status: params.response.status,
-                            statusText: params.response.statusText
+                            statusText: params.response.statusText,
+                            tabId: tab.id,
+                            tabColor: color,
+                            tabLabel: this.sessions.get(tab.id)?.label
                         });
                         this.log(`Cached M3U8 response with id ${id} (${size} bytes)`);
                     } catch (err) {
@@ -423,18 +466,69 @@ export class ChromeDevToolsService {
         }
     }
 
-    async refreshPage(): Promise<void> {
-        if (!this.client) {
-            throw new Error('Not connected to Chrome');
+    private getBasename(url: string): string {
+        try {
+            const urlObj = new URL(url);
+            const pathname = urlObj.pathname;
+            return pathname.split('/').pop() || urlObj.hostname;
+        } catch {
+            return url.split('/').pop() || url;
+        }
+    }
+
+    async refreshPage(tabId: string): Promise<void> {
+        const session = this.sessions.get(tabId);
+        if (!session) {
+            throw new Error('Tab not found');
         }
         try {
-            this.log('Refreshing page...');
-            await this.client.Page.enable();
-            await this.client.Page.reload();
+            this.log(`Refreshing page for tab ${tabId}...`);
+            await session.client.Page.enable();
+            await session.client.Page.reload();
             this.log('Page refreshed');
         } catch (error) {
             const errMsg = `Error refreshing page: ${error}`;
             this.log(errMsg);
+            throw error;
+        }
+    }
+
+    async setTabLabel(tabId: string, label: string): Promise<void> {
+        const session = this.sessions.get(tabId);
+        if (!session) {
+            throw new Error('Tab not found');
+        }
+        session.label = label;
+        // Notify UI of label change
+        this._onDidUpdateResponses.fire({
+            id: 'tab-label-update',
+            url: session.tab.url,
+            timestamp: Date.now(),
+            size: 0,
+            tabId,
+            tabColor: session.color,
+            tabLabel: label
+        });
+    }
+
+    async disconnectTab(tabId: string): Promise<void> {
+        const session = this.sessions.get(tabId);
+        if (!session) {
+            throw new Error('Tab not found');
+        }
+        try {
+            await session.client.close();
+            this.sessions.delete(tabId);
+            // Notify UI of tab removal
+            this._onDidUpdateResponses.fire({
+                id: 'tab-removed',
+                url: session.tab.url,
+                timestamp: Date.now(),
+                size: 0,
+                tabId
+            });
+        } catch (error) {
+            this.log(`Error disconnecting tab ${tabId}: ${error}`);
             throw error;
         }
     }
@@ -451,9 +545,11 @@ export class ChromeDevToolsService {
 
     dispose() {
         this._onDidUpdateResponses.dispose();
-        if (this.client) {
-            this.client.close();
+        // Close all CDP sessions
+        for (const [_, session] of this.sessions) {
+            session.client.close();
         }
+        this.sessions.clear();
         this.responseCache.clear();
     }
 } 

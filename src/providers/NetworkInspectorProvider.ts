@@ -57,12 +57,30 @@ export class NetworkInspectorProvider {
                 return;
             }
 
-            if (message.command === 'chooseTab') {
-                // Reconnect to Chrome to select a new tab
+            if (message.command === 'addTab') {
+                // Connect to Chrome to add a new tab
                 try {
                     await this.chromeService.connect();
                 } catch (error) {
-                    this.log(`Failed to choose tab: ${error}`);
+                    this.log(`Failed to add tab: ${error}`);
+                }
+                return;
+            }
+
+            if (message.command === 'removeTab') {
+                try {
+                    await this.chromeService.disconnectTab(message.tabId);
+                } catch (error) {
+                    this.log(`Failed to remove tab: ${error}`);
+                }
+                return;
+            }
+
+            if (message.command === 'setTabLabel') {
+                try {
+                    await this.chromeService.setTabLabel(message.tabId, message.label);
+                } catch (error) {
+                    this.log(`Failed to set tab label: ${error}`);
                 }
                 return;
             }
@@ -77,9 +95,9 @@ export class NetworkInspectorProvider {
             }
 
             if (message.command === 'refreshPage') {
-                // Refresh the current page
+                // Refresh the specified tab
                 try {
-                    await this.chromeService.refreshPage();
+                    await this.chromeService.refreshPage(message.tabId);
                 } catch (error) {
                     this.log(`Failed to refresh page: ${error}`);
                 }
@@ -138,7 +156,10 @@ export class NetworkInspectorProvider {
                     discontinuitySequence: response.discontinuitySequence,
                     fromCache: response.fromCache,
                     status: response.status,
-                    statusText: response.statusText
+                    statusText: response.statusText,
+                    tabId: response.tabId,
+                    tabColor: response.tabColor,
+                    tabLabel: response.tabLabel
                 });
             }
         });
