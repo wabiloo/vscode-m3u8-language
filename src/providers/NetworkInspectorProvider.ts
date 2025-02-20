@@ -132,6 +132,8 @@ export class NetworkInspectorProvider {
                 this.responseListener.dispose();
                 this.responseListener = undefined;
             }
+            // Clean up all CDP sessions when the panel is closed
+            this.chromeService.disconnectAllTabs();
             this.panel = undefined;
         }, null, this.disposables);
 

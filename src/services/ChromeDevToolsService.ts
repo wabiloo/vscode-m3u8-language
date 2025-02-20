@@ -533,6 +533,19 @@ export class ChromeDevToolsService {
         }
     }
 
+    async disconnectAllTabs(): Promise<void> {
+        // Get all tab IDs first to avoid modifying the map while iterating
+        const tabIds = Array.from(this.sessions.keys());
+        for (const tabId of tabIds) {
+            try {
+                await this.disconnectTab(tabId);
+            } catch (error) {
+                this.log(`Error disconnecting tab ${tabId}: ${error}`);
+                // Continue with other tabs even if one fails
+            }
+        }
+    }
+
     getResponse(id: string): { url: string; body: string; timestamp: number } | undefined {
         const cached = this.responseCache.get(id);
         if (!cached) { return undefined; }
