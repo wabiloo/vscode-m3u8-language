@@ -1,5 +1,8 @@
 # Change Log
 
+## [1.5.0] - 2025-02-20
+- Network inspector with support for Chrome DevTools Protocol
+
 ## [1.4.0] - 2025-02-13
 - SCTE35 parsing
 - More complete tag documentation, now also optional (through settings)

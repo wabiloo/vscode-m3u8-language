@@ -60,19 +60,25 @@ From within the playlist document, you can also with a simple click:
 
 #### Browser hook
 
-Ever tried debugging HLS streams in a browser?  It's a major pain...
+Ever tried debugging HLS streams in a browser?  I find it a major pain...
 
 So, this extension also makes it possible to work with streams being played in a web player (via palette command `Open Network Inspector`).
-It leverages the Chrome DevTools Protocol, and exposes within VS Code all M3U8 playlists (on-demand or live) in a table.
+It leverages the Chrome DevTools Protocol, and exposes within a table all requests for M3U8 playlists (on-demand or live).
 
-For live playlists, the table will also show the values of the media sequence and discontinuity sequence tags.
+- Monitor multiple browser tabs, and easily identify what M3U8 requests are made by which tab.
+- Refresh the tab content from within VS Code.
+- For live playlists, columns show the media sequence and discontinuity sequence tag values.
+- Filter the table for any string in the URL
+- Highlight in the table any request whose body contains a specific string.
+- Click on any row to show the HLS body in a tab. Ctrl/Cmd+click on multiple to open them in separate tabs (ideal to compare them using the standard VS Code diff tool).
 
-Clicking on any row will show the body of the playlist in a new tab. You can open multiple tabs with ctrl/cmd+click, with indicators in the table to show them.
+![Network Inspector](https://raw.githubusercontent.com/wabiloo/vscode-m3u8-language/main/images/network-inspector.png)
 
-## Supported File Extensions
+This feature should work with any web player that uses the Chrome DevTools Protocol, including Chrome, Edge and any Chromium-based browser.
 
-- `.m3u8`
-- `.m3u`
+Start your browser with the remote debugging port enabled, which usually involves executing it with the command line argument `--remote-debugging-port=9222`.
+If the extension can't detect it, it will offer to (re)start your browser with the correct argument.
+
 
 ## Extension Settings
 
