@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M3U8 Network Inspector</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         body {
             padding: 20px;
@@ -91,6 +92,12 @@
             color: inherit;
             cursor: pointer;
             opacity: 0.7;
+            font-size: 14px;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .tab-button:hover {
             opacity: 1;
@@ -187,8 +194,21 @@
         .col-disc { width: 60px; text-align: right; }
         .col-tab { width: 20px; text-align: center; padding: 6px 0; }
         .col-chrome-tab { width: 20px; text-align: center; padding: 6px 0; }
-        .col-name { width: 200px; }
-        .col-url { width: auto; }
+        .col-name { 
+            min-width: 60px;
+            max-width: 150px;
+            width: fit-content;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .col-url { 
+            width: auto;
+            min-width: 300px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         .empty-state {
             text-align: center;
             padding: 40px;
@@ -287,7 +307,9 @@
             <div class="header-title">M3U8 Network Inspector</div>
         </div>
         <div style="display: flex; gap: 8px;">
-            <button class="button" id="add-tab-button" title="Add a tab from the browser to monitor">Add tab</button>
+            <button class="button" id="add-tab-button" title="Add a tab from the browser to monitor">
+                <i class="fas fa-plus"></i> Add tab
+            </button>
         </div>
     </div>
     <div id="tab-bar" class="tab-bar"></div>
@@ -318,8 +340,12 @@
             <span class="keyboard-shortcut">${process.platform === 'darwin' ? '⌘' : 'Ctrl'}+Click</span> to open response in a new tab
         </div>
         <div style="display: flex; gap: 8px;">
-            <button class="button" id="pause-button">Pause</button>
-            <button class="button" id="clear-button">Clear</button>
+            <button class="button" id="pause-button">
+                <i class="fas fa-pause"></i> Pause
+            </button>
+            <button class="button" id="clear-button">
+                <i class="fas fa-trash-alt"></i> Clear
+            </button>
         </div>
     </div>
     <script>
@@ -364,13 +390,13 @@
                     <span class="tab-label" title="${tab.url}">${tab.label || 'Unnamed Tab'}</span>
                     <div class="tab-actions">
                         <button class="tab-button" title="Filter responses to show only this tab">
-                            <span>🔍</span>
+                            <i class="fas fa-filter"></i>
                         </button>
                         <button class="tab-button" title="Refresh this tab">
-                            <span>↻</span>
+                            <i class="fas fa-sync-alt"></i>
                         </button>
                         <button class="tab-button" title="Stop monitoring this tab">
-                            <span>✕</span>
+                            <i class="fas fa-times"></i>
                         </button>
                     </div>
                 </div>
@@ -589,8 +615,8 @@
                         <td class="col-tab">
                             <span class="tab-indicator ${indicatorClass}"></span>
                         </td>
-                        <td class="col-name ${urlClasses.join(' ')}">${getBasename(response.url)}</td>
-                        <td class="col-url ${urlClasses.join(' ')}">${response.url}</td>
+                        <td class="col-name ${urlClasses.join(' ')}" title="${getBasename(response.url)}">${getBasename(response.url)}</td>
+                        <td class="col-url ${urlClasses.join(' ')}" title="${response.url}">${response.url}</td>
                     </tr>
                 `;
             }).join('');
@@ -703,7 +729,9 @@
                 if (message.id === 'pause-state') {
                     // Update pause button text and style based on state
                     const isPaused = message.title === 'paused';
-                    pauseButton.textContent = isPaused ? 'Resume' : 'Pause';
+                    pauseButton.innerHTML = isPaused ? 
+                        '<i class="fas fa-play"></i> Resume' : 
+                        '<i class="fas fa-pause"></i> Pause';
                     pauseButton.classList.toggle('resume', isPaused);
                     return;
                 }
