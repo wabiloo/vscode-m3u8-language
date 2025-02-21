@@ -18,11 +18,40 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
         const isMultiVariant = this.isMultiVariantPlaylist(document.getText());
         this.log(`Document is ${isMultiVariant ? 'a multivariant playlist' : 'a regular playlist'}`);
 
+        // Track the current init segment
+        let currentInitSegment: { uri: string, resolvedUri: string } | undefined;
+
         for (let i = 0; i < document.lineCount; i++) {
             const line = document.lineAt(i);
             const text = line.text.trim();
             
             if (text.startsWith('#')) {
+                // Check for EXT-X-MAP tag first
+                if (text.startsWith('#EXT-X-MAP:')) {
+                    const uriMatch = text.match(/URI="([^"]+)"|URI=([^,\s"]+)/);
+                    if (uriMatch) {
+                        const uri = uriMatch[1] || uriMatch[2];
+                        let resolvedUri = uri;
+                        if (baseUri && !this.isValidUrl(uri)) {
+                            resolvedUri = new URL(uri, baseUri).toString();
+                        }
+                        currentInitSegment = { uri, resolvedUri };
+                        
+                        // Create a link for the init segment itself
+                        const startPos = line.text.indexOf(uri);
+                        const range = new vscode.Range(
+                            new vscode.Position(i, startPos),
+                            new vscode.Position(i, startPos + uri.length)
+                        );
+                        
+                        const link = new vscode.DocumentLink(range);
+                        link.tooltip = `${process.platform === 'darwin' ? '⌘' : 'Ctrl'}+Click to preview, right-click for more options: ${resolvedUri}`;
+                        link.target = vscode.Uri.parse(`command:m3u8._previewSegment?${encodeURIComponent(JSON.stringify([resolvedUri]))}`);
+                        links.push(link);
+                    }
+                    continue;
+                }
+
                 // Handle URIs in any tag attributes
                 const uriMatches = text.matchAll(/URI="([^"]+)"/g);
                 for (const match of uriMatches) {
@@ -49,8 +78,8 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
                     // For regular playlists, use _previewSegment for the preview functionality
                     const command = isMultiVariant ? 'm3u8._handleUriClick' : 'm3u8._previewSegment';
                     const args = isMultiVariant ? 
-                        JSON.stringify([resolvedUrl, baseUri, true]) : 
-                        JSON.stringify([resolvedUrl]);
+                        JSON.stringify([resolvedUrl, true]) : 
+                        JSON.stringify([resolvedUrl, false, currentInitSegment?.resolvedUri]);
                     
                     this.log(`  Using command: ${command} with isFromMultivariant=${isMultiVariant}`);
                     link.target = vscode.Uri.parse(`command:${command}?${encodeURIComponent(args)}`);
@@ -84,8 +113,8 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
                     // For regular playlists, use _previewSegment for the preview functionality
                     const command = isMultiVariant ? 'm3u8._handleUriClick' : 'm3u8._previewSegment';
                     const args = isMultiVariant ? 
-                        JSON.stringify([resolvedUrl, baseUri, true]) : 
-                        JSON.stringify([resolvedUrl]);
+                        JSON.stringify([resolvedUrl, true]) : 
+                        JSON.stringify([resolvedUrl, false, currentInitSegment?.resolvedUri]);
                     
                     this.log(`  Using command: ${command} with isFromMultivariant=${isMultiVariant}`);
                     link.target = vscode.Uri.parse(`command:${command}?${encodeURIComponent(args)}`);
@@ -116,8 +145,8 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
                 // For regular playlists, use _previewSegment for the preview functionality
                 const command = isMultiVariant ? 'm3u8._handleUriClick' : 'm3u8._previewSegment';
                 const args = isMultiVariant ? 
-                    JSON.stringify([resolvedUrl, baseUri, true]) : 
-                    JSON.stringify([resolvedUrl]);
+                    JSON.stringify([resolvedUrl, true]) : 
+                    JSON.stringify([resolvedUrl, false, currentInitSegment?.resolvedUri]);
                 
                 this.log(`  Using command: ${command} with isFromMultivariant=${isMultiVariant}`);
                 link.target = vscode.Uri.parse(`command:${command}?${encodeURIComponent(args)}`);

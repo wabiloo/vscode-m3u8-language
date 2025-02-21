@@ -107,7 +107,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('m3u8.openRemotePlaylist', () => remotePlaylistService.openRemotePlaylist()),
         vscode.commands.registerCommand('m3u8.refreshPlaylist', () => remotePlaylistService.refreshCurrentPlaylist()),
         vscode.commands.registerCommand('m3u8.toggleAutoRefresh', () => remotePlaylistService.toggleAutoRefresh()),
-        vscode.commands.registerCommand('m3u8._handleUriClick', async (uri: string, baseUri?: string, isFromMultivariant?: boolean, args?: any[]) => {
+        vscode.commands.registerCommand('m3u8._handleUriClick', async (uri: string, isFromMultivariant?: boolean, args?: any[]) => {
             if (!uri) {
                 log('No URI provided to _handleUriClick');
                 return;
@@ -126,20 +126,16 @@ export function activate(context: vscode.ExtensionContext) {
             
             // Otherwise handle as a segment with preview/download mode
             if (mode === 'preview') {
-                await vscode.commands.executeCommand('m3u8._previewSegment', uri, baseUri);
+                await vscode.commands.executeCommand('m3u8._previewSegment', uri);
             } else if (mode === 'download') {
-                await vscode.commands.executeCommand('m3u8._downloadSegment', uri, baseUri);
+                await vscode.commands.executeCommand('m3u8._downloadSegment', uri);
             }
         }),
-        vscode.commands.registerCommand('m3u8._previewSegment', async (uriOrSelection?: string | vscode.Selection) => {
-            let uri: string | undefined;
-            let baseUri: string | undefined;
-
-            // If a string is provided, it's a direct URI from a link click
-            if (typeof uriOrSelection === 'string') {
-                uri = uriOrSelection;
+        vscode.commands.registerCommand('m3u8._previewSegment', async (uri?: string, isFromMultivariant?: boolean, initSegmentUri?: string) => {
+            if (typeof uri === 'string') {
+                await segmentPreviewService.showSegmentPreview(uri, initSegmentUri);
             } else {
-                // Otherwise get the URL from the selection
+                // Handle selection case
                 const editor = vscode.window.activeTextEditor;
                 if (!editor) return;
 
@@ -157,29 +153,37 @@ export function activate(context: vscode.ExtensionContext) {
                     url = uriMatch[1] || uriMatch[2];
                 }
 
-                // Get the base URI from the document
-                baseUri = remotePlaylistMap.get(editor.document.uri.toString())?.uri;
-                
-                // Resolve the URL if it's relative
-                uri = baseUri && !isValidUrl(url) ? new URL(url, baseUri).toString() : url;
-            }
+                // Get the base URI from the document and resolve the URL if it's relative
+                const baseUri = remotePlaylistMap.get(editor.document.uri.toString())?.uri;
+                const resolvedUrl = baseUri && !isValidUrl(url) ? new URL(url, baseUri).toString() : url;
 
-            if (uri) {
-                await segmentPreviewService.showSegmentPreview(uri);
+                // Find the nearest init segment if any
+                let nearestInitSegment: string | undefined;
+                for (let i = position.line; i >= 0; i--) {
+                    const currentLine = editor.document.lineAt(i).text.trim();
+                    if (currentLine.startsWith('#EXT-X-MAP:')) {
+                        const initMatch = currentLine.match(/URI="([^"]+)"|URI=([^,\s"]+)/);
+                        if (initMatch) {
+                            const initUri = initMatch[1] || initMatch[2];
+                            nearestInitSegment = baseUri && !isValidUrl(initUri) ? 
+                                new URL(initUri, baseUri).toString() : 
+                                initUri;
+                            break;
+                        }
+                    }
+                }
+
+                await segmentPreviewService.showSegmentPreview(resolvedUrl, nearestInitSegment);
             }
         }),
-        vscode.commands.registerCommand('m3u8._downloadSegment', async (uriOrSelection?: string | vscode.Selection) => {
+        vscode.commands.registerCommand('m3u8._downloadSegment', async (uri?: string, isFromMultivariant?: boolean, initSegmentUri?: string) => {
             // Show status immediately
             remotePlaylistService.showDownloadStatus('$(cloud-download) Preparing download...');
 
-            let uri: string | undefined;
-            let baseUri: string | undefined;
-
-            // If a string is provided, it's a direct URI from a link click
-            if (typeof uriOrSelection === 'string') {
-                uri = uriOrSelection;
+            if (typeof uri === 'string') {
+                await remotePlaylistService.downloadSegment(uri, initSegmentUri);
             } else {
-                // Otherwise get the URL from the selection
+                // Handle selection case
                 const editor = vscode.window.activeTextEditor;
                 if (!editor) {
                     remotePlaylistService.hideDownloadStatus();
@@ -203,17 +207,27 @@ export function activate(context: vscode.ExtensionContext) {
                     url = uriMatch[1] || uriMatch[2];
                 }
 
-                // Get the base URI from the document
-                baseUri = remotePlaylistMap.get(editor.document.uri.toString())?.uri;
-                
-                // Resolve the URL if it's relative
-                uri = baseUri && !isValidUrl(url) ? new URL(url, baseUri).toString() : url;
-            }
+                // Get the base URI from the document and resolve the URL if it's relative
+                const baseUri = remotePlaylistMap.get(editor.document.uri.toString())?.uri;
+                const resolvedUrl = baseUri && !isValidUrl(url) ? new URL(url, baseUri).toString() : url;
 
-            if (uri) {
-                await remotePlaylistService.downloadSegment(uri);
-            } else {
-                remotePlaylistService.hideDownloadStatus();
+                // Find the nearest init segment if any
+                let nearestInitSegment: string | undefined;
+                for (let i = position.line; i >= 0; i--) {
+                    const currentLine = editor.document.lineAt(i).text.trim();
+                    if (currentLine.startsWith('#EXT-X-MAP:')) {
+                        const initMatch = currentLine.match(/URI="([^"]+)"|URI=([^,\s"]+)/);
+                        if (initMatch) {
+                            const initUri = initMatch[1] || initMatch[2];
+                            nearestInitSegment = baseUri && !isValidUrl(initUri) ? 
+                                new URL(initUri, baseUri).toString() : 
+                                initUri;
+                            break;
+                        }
+                    }
+                }
+
+                await remotePlaylistService.downloadSegment(resolvedUrl, nearestInitSegment);
             }
         }),
         vscode.commands.registerCommand('m3u8.parseSCTE35', async (line?: string) => {

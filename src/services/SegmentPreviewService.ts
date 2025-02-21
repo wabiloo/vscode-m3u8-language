@@ -1,4 +1,3 @@
-import { URL } from 'url';
 import * as vscode from 'vscode';
 import { RemotePlaylistService } from './RemotePlaylistService';
 
@@ -214,19 +213,20 @@ export class SegmentPreviewService {
         </html>`;
     }
 
-    public async showSegmentPreview(segmentUri: string, baseUri?: string) {
+    public async showSegmentPreview(segmentUri: string, initSegmentUri?: string) {
         try {
-            // Resolve the full URI if it's relative
-            const fullUri = baseUri ? new URL(segmentUri, baseUri).toString() : segmentUri;
-            this.log(`Opening segment preview for ${fullUri}`);
+            this.log(`Opening segment preview for ${segmentUri}`);
 
             // Create a single-segment playlist
-            const playlistContent = `#EXTM3U
-#EXT-X-VERSION:3
-#EXT-X-TARGETDURATION:10
-#EXTINF:10.0,
-${fullUri}
-#EXT-X-ENDLIST`;
+            let playlistContent = '#EXTM3U\n#EXT-X-VERSION:3\n';
+
+            // Add init segment if present
+            if (initSegmentUri) {
+                this.log(`Adding init segment: ${initSegmentUri}`);
+                playlistContent += `#EXT-X-MAP:URI="${initSegmentUri}"\n`;
+            }
+
+            playlistContent += `#EXT-X-TARGETDURATION:10\n#EXTINF:10.0,\n${segmentUri}\n#EXT-X-ENDLIST`;
 
             // Log the playlist content to the output channel
             this.log('Generated HLS playlist for segment:');
@@ -238,14 +238,14 @@ ${fullUri}
 
             // Create or show the webview panel
             if (!this.panel) {
-                this.panel = this.createWebviewPanel(fullUri);
+                this.panel = this.createWebviewPanel(segmentUri);
                 
                 // Handle messages from the webview
                 this.panel.webview.onDidReceiveMessage(
                     async message => {
                         switch (message.command) {
                             case 'downloadSegment':
-                                await this.remotePlaylistService.downloadSegment(message.uri);
+                                await this.remotePlaylistService.downloadSegment(message.uri, initSegmentUri);
                                 break;
                             case 'requestPlaylist':
                                 this.panel?.webview.postMessage({
@@ -260,7 +260,7 @@ ${fullUri}
                 );
             }
 
-            this.panel.webview.html = this.getWebviewContent(fullUri, this.tempPlaylistUri);
+            this.panel.webview.html = this.getWebviewContent(segmentUri, this.tempPlaylistUri);
             this.panel.reveal(vscode.ViewColumn.Beside, true);
 
         } catch (error: any) {

@@ -352,16 +352,24 @@ export class RemotePlaylistService {
         this.downloadStatusBarItem.hide();
     }
 
-    public async downloadSegment(uri: string, baseUri?: string): Promise<void> {
+    public async downloadSegment(uri: string, initSegmentUri?: string): Promise<void> {
         try {
             // Show download status
             this.showDownloadStatus(`$(cloud-download) Downloading segment...`);
 
-            // Resolve the full URI if it's relative
-            const fullUri = baseUri ? new URL(uri, baseUri).toString() : uri;
-            this.log(`Downloading segment from ${fullUri}`);
+            this.log(`Downloading segment from ${uri}`);
 
-            const content = await this.fetchBinaryContent(fullUri);
+            // If we have an init segment, download it first
+            let initContent: Buffer | undefined;
+            if (initSegmentUri) {
+                this.showDownloadStatus(`$(cloud-download) Downloading init segment...`);
+                this.log(`Downloading init segment from ${initSegmentUri}`);
+                initContent = await this.fetchBinaryContent(initSegmentUri);
+            }
+
+            // Download the main segment
+            this.showDownloadStatus(`$(cloud-download) Downloading media segment...`);
+            const content = await this.fetchBinaryContent(uri);
             
             // Get the default name from the URI
             const defaultName = uri.split('/').pop() || 'segment';
@@ -395,7 +403,12 @@ export class RemotePlaylistService {
                 // Update status to show we're saving
                 this.showDownloadStatus(`$(cloud-download) Saving segment...`);
                 
-                await vscode.workspace.fs.writeFile(saveUri, content);
+                // If we have an init segment, concatenate it with the main segment
+                const finalContent = initContent ? 
+                    Buffer.concat([initContent, content]) : 
+                    content;
+
+                await vscode.workspace.fs.writeFile(saveUri, finalContent);
                 
                 // Remember the directory for next time
                 if (playlistUri) {
