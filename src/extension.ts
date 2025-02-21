@@ -113,18 +113,17 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             
-            // The mode can come from the keybinding args
-            const mode = args?.[0] || 'preview';
-            
-            log(`Handling URI click for ${uri} with mode ${mode}, isFromMultivariant=${isFromMultivariant}`);
-
             // If this is from a multivariant playlist, directly handle it as a playlist
             if (isFromMultivariant) {
                 await remotePlaylistService.handlePlaylistUri(uri);
                 return;
             }
             
-            // Otherwise handle as a segment with preview/download mode
+            // The mode can come from the keybinding args
+            const mode = args?.[0] || 'preview';
+            log(`Handling URI click for ${uri} with mode ${mode}`);
+            
+            // Handle as a segment with preview/download mode
             if (mode === 'preview') {
                 await vscode.commands.executeCommand('m3u8._previewSegment', uri);
             } else if (mode === 'download') {
@@ -177,6 +176,14 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }),
         vscode.commands.registerCommand('m3u8._downloadSegment', async (uri?: string, isFromMultivariant?: boolean, initSegmentUri?: string) => {
+            if (isFromMultivariant) {
+                // If this is a variant playlist URI, open it instead of downloading
+                if (typeof uri === 'string') {
+                    await remotePlaylistService.handlePlaylistUri(uri);
+                }
+                return;
+            }
+
             // Show status immediately
             remotePlaylistService.showDownloadStatus('$(cloud-download) Preparing download...');
 
@@ -266,6 +273,12 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.window.onDidChangeActiveTextEditor(editor => {
             if (editor) {
+                // Update the multivariant context when the editor changes
+                const isMultiVariant = editor.document.languageId === 'm3u8' && 
+                    (editor.document.getText().includes('#EXT-X-STREAM-INF:') || 
+                     editor.document.getText().includes('#EXT-X-MEDIA:'));
+                vscode.commands.executeCommand('setContext', 'm3u8.isMultiVariantPlaylist', isMultiVariant);
+
                 decorationManager.updateDecorations(editor);
                 decorationManager.updateLinkDecorations(editor);
             }
@@ -273,6 +286,12 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.workspace.onDidChangeTextDocument(event => {
             const editor = vscode.window.activeTextEditor;
             if (editor && event.document === editor.document) {
+                // Update the multivariant context when the document changes
+                const isMultiVariant = editor.document.languageId === 'm3u8' && 
+                    (editor.document.getText().includes('#EXT-X-STREAM-INF:') || 
+                     editor.document.getText().includes('#EXT-X-MEDIA:'));
+                vscode.commands.executeCommand('setContext', 'm3u8.isMultiVariantPlaylist', isMultiVariant);
+
                 decorationManager.updateDecorations(editor);
                 decorationManager.updateLinkDecorations(editor);
             }

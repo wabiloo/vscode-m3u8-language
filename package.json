@@ -221,12 +221,12 @@
     "menus": {
       "editor/context": [
         {
-          "when": "editorTextFocus && editorLangId == m3u8",
+          "when": "editorTextFocus && editorLangId == m3u8 && !m3u8.isMultiVariantPlaylist",
           "command": "m3u8._previewSegment",
           "group": "m3u8@1"
         },
         {
-          "when": "editorTextFocus && editorLangId == m3u8",
+          "when": "editorTextFocus && editorLangId == m3u8 && !m3u8.isMultiVariantPlaylist",
           "command": "m3u8._downloadSegment",
           "group": "m3u8@2"
         }
