@@ -107,7 +107,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('m3u8.openRemotePlaylist', () => remotePlaylistService.openRemotePlaylist()),
         vscode.commands.registerCommand('m3u8.refreshPlaylist', () => remotePlaylistService.refreshCurrentPlaylist()),
         vscode.commands.registerCommand('m3u8.toggleAutoRefresh', () => remotePlaylistService.toggleAutoRefresh()),
-        vscode.commands.registerCommand('m3u8._handleUriClick', async (uri: string, baseUri?: string, args?: any[]) => {
+        vscode.commands.registerCommand('m3u8._handleUriClick', async (uri: string, baseUri?: string, isFromMultivariant?: boolean, args?: any[]) => {
             if (!uri) {
                 log('No URI provided to _handleUriClick');
                 return;
@@ -116,7 +116,15 @@ export function activate(context: vscode.ExtensionContext) {
             // The mode can come from the keybinding args
             const mode = args?.[0] || 'preview';
             
-            log(`Handling URI click for ${uri} with mode ${mode}`);
+            log(`Handling URI click for ${uri} with mode ${mode}, isFromMultivariant=${isFromMultivariant}`);
+
+            // If this is from a multivariant playlist, directly handle it as a playlist
+            if (isFromMultivariant) {
+                await remotePlaylistService.handlePlaylistUri(uri);
+                return;
+            }
+            
+            // Otherwise handle as a segment with preview/download mode
             if (mode === 'preview') {
                 await vscode.commands.executeCommand('m3u8._previewSegment', uri, baseUri);
             } else if (mode === 'download') {

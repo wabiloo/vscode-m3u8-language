@@ -435,12 +435,18 @@ export class RemotePlaylistService {
         }
     }
 
-    async handleUriClick(uri: string, mode: 'preview' | 'download' = 'preview') {
-        this.log(`handleUriClick called with uri: ${uri}, mode: ${mode}`);
+    async handleUriClick(uri: string, mode: 'preview' | 'download' = 'preview', isFromMultivariant: boolean = false) {
+        this.log(`handleUriClick called with uri: ${uri}, mode: ${mode}, isFromMultivariant: ${isFromMultivariant}`);
         
         if (this.isValidUrl(uri)) {
             try {
-                // First check if we're in a multi-variant playlist
+                // If we're coming from a multivariant playlist, directly handle as playlist
+                if (isFromMultivariant) {
+                    await this.handlePlaylistUri(uri);
+                    return;
+                }
+
+                // Otherwise check if we're in a multi-variant playlist
                 const editor = vscode.window.activeTextEditor;
                 if (editor) {
                     const docUri = editor.document.uri.toString();
@@ -484,7 +490,7 @@ export class RemotePlaylistService {
         }
     }
 
-    private async handlePlaylistUri(uri: string) {
+    public async handlePlaylistUri(uri: string) {
         this.log(`Opening playlist: ${uri}`);
         const content = await this.fetchRemotePlaylist(uri);
         
