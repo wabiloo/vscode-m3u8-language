@@ -10,6 +10,7 @@ export class RemotePlaylistService {
     private countdownInterval?: NodeJS.Timeout;
     private baseDecorationType!: vscode.TextEditorDecorationType;
     private linkDecorationType!: vscode.TextEditorDecorationType;
+    private downloadStatusBarItem: vscode.StatusBarItem;
 
     constructor(
         private remotePlaylistMap: Map<string, RemotePlaylistInfo>,
@@ -21,6 +22,10 @@ export class RemotePlaylistService {
         this.statusBarItem.command = 'm3u8.toggleAutoRefresh';
         this.statusBarItem.tooltip = 'Click to toggle auto-refresh';
         this.context.subscriptions.push(this.statusBarItem);
+
+        this.downloadStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
+        this.context.subscriptions.push(this.downloadStatusBarItem);
+
         this.updateStatusBar(false);
         this.initializeDecorationTypes();
 
@@ -338,8 +343,20 @@ export class RemotePlaylistService {
         setTimeout(() => disposable.dispose(), timeout);
     }
 
+    public showDownloadStatus(message: string): void {
+        this.downloadStatusBarItem.text = message;
+        this.downloadStatusBarItem.show();
+    }
+
+    public hideDownloadStatus(): void {
+        this.downloadStatusBarItem.hide();
+    }
+
     public async downloadSegment(uri: string, baseUri?: string): Promise<void> {
         try {
+            // Show download status
+            this.showDownloadStatus(`$(cloud-download) Downloading segment...`);
+
             // Resolve the full URI if it's relative
             const fullUri = baseUri ? new URL(uri, baseUri).toString() : uri;
             this.log(`Downloading segment from ${fullUri}`);
@@ -365,6 +382,9 @@ export class RemotePlaylistService {
                 defaultUri = vscode.Uri.joinPath(defaultPath, defaultName);
             }
             
+            // Update status to show we're waiting for save location
+            this.showDownloadStatus(`$(cloud-download) Select where to save...`);
+            
             // Show save dialog
             const saveUri = await vscode.window.showSaveDialog({
                 defaultUri,
@@ -372,6 +392,9 @@ export class RemotePlaylistService {
             });
             
             if (saveUri) {
+                // Update status to show we're saving
+                this.showDownloadStatus(`$(cloud-download) Saving segment...`);
+                
                 await vscode.workspace.fs.writeFile(saveUri, content);
                 
                 // Remember the directory for next time
@@ -382,8 +405,9 @@ export class RemotePlaylistService {
                 
                 this.log(`Segment downloaded successfully to ${saveUri.fsPath}`);
                 
-                // Show auto-hiding status message
-                this.showAutoHideMessage(`✓ Segment downloaded to ${saveUri.fsPath}`);
+                // Show success in status bar briefly
+                this.showDownloadStatus(`$(check) Segment downloaded`);
+                setTimeout(() => this.hideDownloadStatus(), 3000);
                 
                 // Also show a clickable notification to open the folder
                 const openFolder = 'Open Folder';
@@ -395,10 +419,18 @@ export class RemotePlaylistService {
                     const folderUri = vscode.Uri.file(path.dirname(saveUri.fsPath));
                     vscode.commands.executeCommand('revealFileInOS', folderUri);
                 }
+            } else {
+                // User cancelled the save dialog
+                this.hideDownloadStatus();
             }
         } catch (error: any) {
             const errorMessage = `Failed to download segment: ${error.message}`;
             this.log(errorMessage);
+            
+            // Show error in status bar briefly
+            this.showDownloadStatus(`$(error) Download failed`);
+            setTimeout(() => this.hideDownloadStatus(), 3000);
+            
             vscode.window.showErrorMessage(errorMessage);
         }
     }
@@ -521,5 +553,6 @@ export class RemotePlaylistService {
             clearInterval(this.countdownInterval);
         }
         this.statusBarItem.dispose();
+        this.downloadStatusBarItem.dispose();
     }
 } 

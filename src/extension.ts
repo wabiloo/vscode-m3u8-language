@@ -161,6 +161,9 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }),
         vscode.commands.registerCommand('m3u8._downloadSegment', async (uriOrSelection?: string | vscode.Selection) => {
+            // Show status immediately
+            remotePlaylistService.showDownloadStatus('$(cloud-download) Preparing download...');
+
             let uri: string | undefined;
             let baseUri: string | undefined;
 
@@ -170,7 +173,10 @@ export function activate(context: vscode.ExtensionContext) {
             } else {
                 // Otherwise get the URL from the selection
                 const editor = vscode.window.activeTextEditor;
-                if (!editor) return;
+                if (!editor) {
+                    remotePlaylistService.hideDownloadStatus();
+                    return;
+                }
 
                 // Get the line at the cursor position
                 const position = editor.selection.active;
@@ -182,7 +188,10 @@ export function activate(context: vscode.ExtensionContext) {
                 if (text.startsWith('#')) {
                     // Try to extract URL from tag attributes
                     const uriMatch = text.match(/URI="([^"]+)"|URI=([^,\s"]+)/);
-                    if (!uriMatch) return;
+                    if (!uriMatch) {
+                        remotePlaylistService.hideDownloadStatus();
+                        return;
+                    }
                     url = uriMatch[1] || uriMatch[2];
                 }
 
@@ -195,6 +204,8 @@ export function activate(context: vscode.ExtensionContext) {
 
             if (uri) {
                 await remotePlaylistService.downloadSegment(uri);
+            } else {
+                remotePlaylistService.hideDownloadStatus();
             }
         }),
         vscode.commands.registerCommand('m3u8.parseSCTE35', async (line?: string) => {
