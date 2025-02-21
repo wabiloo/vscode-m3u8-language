@@ -403,8 +403,8 @@ export class RemotePlaylistService {
         }
     }
 
-    async handleUriClick(uri: string) {
-        this.log(`handleUriClick called with uri: ${uri}`);
+    async handleUriClick(uri: string, mode: 'preview' | 'download' = 'preview') {
+        this.log(`handleUriClick called with uri: ${uri}, mode: ${mode}`);
         
         if (this.isValidUrl(uri)) {
             try {
@@ -428,11 +428,16 @@ export class RemotePlaylistService {
                 const isPlaylist = content.includes('#EXTM3U');
                 
                 if (!isPlaylist) {
-                    this.log('URI points to a segment, showing preview');
+                    this.log('URI points to a segment');
                     const baseUri = editor?.document.uri.toString() ? 
                         this.remoteDocumentContentMap.get(editor.document.uri.toString())?.uri : 
                         undefined;
-                    await vscode.commands.executeCommand('m3u8._previewSegment', uri, baseUri);
+                    
+                    if (mode === 'download') {
+                        await this.downloadSegment(uri, baseUri);
+                    } else {
+                        await vscode.commands.executeCommand('m3u8._previewSegment', uri, baseUri);
+                    }
                     return;
                 }
                 

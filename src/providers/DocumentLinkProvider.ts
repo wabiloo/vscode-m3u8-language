@@ -40,10 +40,12 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
                     
                     link.tooltip = isMultiVariant ? 
                         `Click to open: ${resolvedUrl}` : 
-                        `Click to preview: ${resolvedUrl}`;
+                        `${process.platform === 'darwin' ? '⌘' : 'Ctrl'}+Click to preview, right-click for more options: ${resolvedUrl}`;
                     
+                    // For the preview command, pass just the URL
                     const args = JSON.stringify([resolvedUrl]);
-                    link.target = vscode.Uri.parse(`command:m3u8._handleUriClick?${encodeURIComponent(args)}`);
+                    link.target = vscode.Uri.parse(`command:m3u8._previewSegment?${encodeURIComponent(args)}`);
+                    
                     links.push(link);
                 }
 
@@ -65,10 +67,12 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
                     
                     link.tooltip = isMultiVariant ? 
                         `Click to open: ${resolvedUrl}` : 
-                        `Click to preview: ${resolvedUrl}`;
+                        `${process.platform === 'darwin' ? '⌘' : 'Ctrl'}+Click to preview, right-click for more options: ${resolvedUrl}`;
                     
+                    // For the preview command, pass just the URL
                     const args = JSON.stringify([resolvedUrl]);
-                    link.target = vscode.Uri.parse(`command:m3u8._handleUriClick?${encodeURIComponent(args)}`);
+                    link.target = vscode.Uri.parse(`command:m3u8._previewSegment?${encodeURIComponent(args)}`);
+                    
                     links.push(link);
                 }
             } else if (text) {
@@ -87,10 +91,11 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
 
                 link.tooltip = isMultiVariant ? 
                     `Click to open: ${resolvedUrl}` : 
-                    `Click to preview: ${resolvedUrl}`;
+                    `${process.platform === 'darwin' ? '⌘' : 'Ctrl'}+Click to preview, right-click for more options: ${resolvedUrl}`;
 
+                // For the preview command, pass just the URL
                 const args = JSON.stringify([resolvedUrl]);
-                link.target = vscode.Uri.parse(`command:m3u8._handleUriClick?${encodeURIComponent(args)}`);
+                link.target = vscode.Uri.parse(`command:m3u8._previewSegment?${encodeURIComponent(args)}`);
                 
                 links.push(link);
             }

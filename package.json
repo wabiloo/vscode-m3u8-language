@@ -52,6 +52,16 @@
         "command": "m3u8.openNetworkInspector",
         "title": "Open Network Inspector",
         "category": "M3U8 / HLS"
+      },
+      {
+        "command": "m3u8._previewSegment",
+        "title": "Preview Segment",
+        "category": "M3U8 / HLS"
+      },
+      {
+        "command": "m3u8._downloadSegment",
+        "title": "Download Segment",
+        "category": "M3U8 / HLS"
       }
     ],
     "languages": [
@@ -183,6 +193,44 @@
         "editor.padding.bottom": 8,
         "editor.lineHeight": 1.6
       }
+    },
+    "keybindings": [
+      {
+        "command": "m3u8._handleUriClick",
+        "key": "cmd+click",
+        "mac": "cmd+click",
+        "win": "ctrl+click",
+        "linux": "ctrl+click",
+        "when": "editorTextFocus && editorLangId == m3u8",
+        "args": [
+          "preview"
+        ]
+      },
+      {
+        "command": "m3u8._handleUriClick",
+        "key": "shift+cmd+click",
+        "mac": "shift+cmd+click",
+        "win": "shift+ctrl+click",
+        "linux": "shift+ctrl+click",
+        "when": "editorTextFocus && editorLangId == m3u8",
+        "args": [
+          "download"
+        ]
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorTextFocus && editorLangId == m3u8",
+          "command": "m3u8._previewSegment",
+          "group": "m3u8@1"
+        },
+        {
+          "when": "editorTextFocus && editorLangId == m3u8",
+          "command": "m3u8._downloadSegment",
+          "group": "m3u8@2"
+        }
+      ]
     }
   },
   "repository": {
