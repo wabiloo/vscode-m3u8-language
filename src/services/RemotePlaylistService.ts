@@ -338,7 +338,7 @@ export class RemotePlaylistService {
         setTimeout(() => disposable.dispose(), timeout);
     }
 
-    private async downloadSegment(uri: string, baseUri?: string): Promise<void> {
+    public async downloadSegment(uri: string, baseUri?: string): Promise<void> {
         try {
             // Resolve the full URI if it's relative
             const fullUri = baseUri ? new URL(uri, baseUri).toString() : uri;
@@ -428,8 +428,11 @@ export class RemotePlaylistService {
                 const isPlaylist = content.includes('#EXTM3U');
                 
                 if (!isPlaylist) {
-                    this.log('URI points to a segment, offering download');
-                    await this.downloadSegment(uri);
+                    this.log('URI points to a segment, showing preview');
+                    const baseUri = editor?.document.uri.toString() ? 
+                        this.remoteDocumentContentMap.get(editor.document.uri.toString())?.uri : 
+                        undefined;
+                    await vscode.commands.executeCommand('m3u8._previewSegment', uri, baseUri);
                     return;
                 }
                 

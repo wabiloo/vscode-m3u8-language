@@ -10,6 +10,7 @@ import { M3U8RemoteContentProvider } from './providers/RemoteContentProvider';
 import { ChromeDevToolsService } from './services/ChromeDevToolsService';
 import { RemotePlaylistService } from './services/RemotePlaylistService';
 import { SCTE35Service } from './services/SCTE35Service';
+import { SegmentPreviewService } from './services/SegmentPreviewService';
 import { HLSTagInfo, RemoteDocumentContent, RemotePlaylistInfo } from './types';
 
 // Global state
@@ -19,6 +20,7 @@ let remotePlaylistService: RemotePlaylistService;
 let scte35Service: SCTE35Service;
 let chromeDevToolsService: ChromeDevToolsService;
 let networkInspectorProvider: NetworkInspectorProvider;
+let segmentPreviewService: SegmentPreviewService;
 const remotePlaylistMap = new Map<string, RemotePlaylistInfo>();
 const remoteDocumentContentMap = new Map<string, RemoteDocumentContent>();
 
@@ -43,14 +45,10 @@ export function activate(context: vscode.ExtensionContext) {
     // Load tag definitions
     const tagDefinitions = loadHLSTagDefinitions(context);
 
-    // Initialize services and managers
+    // Initialize services
     decorationManager = new DecorationManager(context, tagDefinitions);
-    remotePlaylistService = new RemotePlaylistService(
-        remotePlaylistMap,
-        remoteDocumentContentMap,
-        context,
-        log
-    );
+    remotePlaylistService = new RemotePlaylistService(remotePlaylistMap, remoteDocumentContentMap, context, log);
+    segmentPreviewService = new SegmentPreviewService(context, log, remotePlaylistService);
     scte35Service = new SCTE35Service(tagDefinitions);
     chromeDevToolsService = new ChromeDevToolsService(log);
     networkInspectorProvider = new NetworkInspectorProvider(context, chromeDevToolsService, log);
@@ -107,6 +105,9 @@ export function activate(context: vscode.ExtensionContext) {
             }
             const uri = args[0];
             await remotePlaylistService.handleUriClick(uri);
+        }),
+        vscode.commands.registerCommand('m3u8._previewSegment', async (uri: string, baseUri?: string) => {
+            await segmentPreviewService.showSegmentPreview(uri, baseUri);
         }),
         vscode.commands.registerCommand('m3u8.parseSCTE35', async (line?: string) => {
             // If line is provided (from code lens), parse it directly
@@ -178,6 +179,7 @@ export function deactivate() {
     scte35Service.dispose();
     chromeDevToolsService.dispose();
     networkInspectorProvider.dispose();
+    segmentPreviewService.dispose();
     
     // Clean up all refresh intervals
     for (const [_, info] of remotePlaylistMap) {

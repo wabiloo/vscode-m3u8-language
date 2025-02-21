@@ -40,7 +40,7 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
                     
                     link.tooltip = isMultiVariant ? 
                         `Click to open: ${resolvedUrl}` : 
-                        `Click to download: ${resolvedUrl}`;
+                        `Click to preview: ${resolvedUrl}`;
                     
                     const args = JSON.stringify([resolvedUrl]);
                     link.target = vscode.Uri.parse(`command:m3u8._handleUriClick?${encodeURIComponent(args)}`);
@@ -65,7 +65,7 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
                     
                     link.tooltip = isMultiVariant ? 
                         `Click to open: ${resolvedUrl}` : 
-                        `Click to download: ${resolvedUrl}`;
+                        `Click to preview: ${resolvedUrl}`;
                     
                     const args = JSON.stringify([resolvedUrl]);
                     link.target = vscode.Uri.parse(`command:m3u8._handleUriClick?${encodeURIComponent(args)}`);
@@ -87,7 +87,7 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
 
                 link.tooltip = isMultiVariant ? 
                     `Click to open: ${resolvedUrl}` : 
-                    `Click to download: ${resolvedUrl}`;
+                    `Click to preview: ${resolvedUrl}`;
 
                 const args = JSON.stringify([resolvedUrl]);
                 link.target = vscode.Uri.parse(`command:m3u8._handleUriClick?${encodeURIComponent(args)}`);
