@@ -54,13 +54,19 @@ All the functionality above is available for local files, but the extensions als
 
 ![Remote Playlist Support](https://raw.githubusercontent.com/wabiloo/vscode-m3u8-language/main/images/remote.gif)
 
-From within the playlist document, you can also with a simple click:
-- Navigate to a variant from a multi-variant playlist
-- Download segments from media playlists
+From within a multi-variant playlist, you can also with a simple click open and navigate to any of the variants.
 
-#### Browser hook
+#### Play and download segments
 
-Ever tried debugging HLS streams in a browser?  I find it a major pain...
+From within a media playlist, you can play and/or download segments with a simple click.
+
+When the semgents require an initialization segment, the extension will automatically download and concatenate it with the segment.
+
+![Play and download segments](https://raw.githubusercontent.com/wabiloo/vscode-m3u8-language/main/images/segment-play.png)
+
+#### Browser monitoring
+
+Ever tried debugging HLS streams in a browser?  I find it is a major pain...
 
 So, this extension also makes it possible to work with streams being played in a web player (via palette command `Open Network Inspector`).
 It leverages the Chrome DevTools Protocol, and exposes within a table all requests for M3U8 playlists (on-demand or live).

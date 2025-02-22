@@ -1,6 +1,7 @@
 # Change Log
 
-## [1.5.0] - 2025-02-20
+## [1.5.0] - 2025-02-22
+- Play and download segments from media playlists, including support for initialization segments
 - Network inspector with support for Chrome DevTools Protocol
 
 ## [1.4.0] - 2025-02-13
