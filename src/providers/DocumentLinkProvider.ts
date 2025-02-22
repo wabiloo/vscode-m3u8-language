@@ -65,13 +65,9 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
                         this.log(`  Resolved relative URI to: ${resolvedUrl}`);
                     }
                     
-                    link.tooltip = isMultiVariant ? 
-                        `Click to open: ${resolvedUrl}` : 
-                        `${process.platform === 'darwin' ? '⌘' : 'Ctrl'}+Click to preview, right-click for more options: ${resolvedUrl}`;
-                    
                     // For multivariant playlists, use _handleUriClick which will open the playlist
-                    // For regular playlists, use _previewSegment for the preview functionality
-                    const command = isMultiVariant ? 'm3u8._handleUriClick' : 'm3u8._previewSegment';
+                    // For regular playlists, use _playSegment for the preview functionality
+                    const command = isMultiVariant ? 'm3u8._handleUriClick' : 'm3u8._playSegment';
                     const args = isMultiVariant ? 
                         JSON.stringify([resolvedUrl, true]) : 
                         JSON.stringify([resolvedUrl, false, currentInitSegment?.resolvedUri]);
@@ -100,13 +96,9 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
                         this.log(`  Resolved relative URI to: ${resolvedUrl}`);
                     }
                     
-                    link.tooltip = isMultiVariant ? 
-                        `Click to open: ${resolvedUrl}` : 
-                        `${process.platform === 'darwin' ? '⌘' : 'Ctrl'}+Click to preview, right-click for more options: ${resolvedUrl}`;
-                    
                     // For multivariant playlists, use _handleUriClick which will open the playlist
-                    // For regular playlists, use _previewSegment for the preview functionality
-                    const command = isMultiVariant ? 'm3u8._handleUriClick' : 'm3u8._previewSegment';
+                    // For regular playlists, use _playSegment for the preview functionality
+                    const command = isMultiVariant ? 'm3u8._handleUriClick' : 'm3u8._playSegment';
                     const args = isMultiVariant ? 
                         JSON.stringify([resolvedUrl, true]) : 
                         JSON.stringify([resolvedUrl, false, currentInitSegment?.resolvedUri]);
@@ -132,13 +124,9 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
                     this.log(`  Resolved relative URI to: ${resolvedUrl}`);
                 }
 
-                link.tooltip = isMultiVariant ? 
-                    `Click to open: ${resolvedUrl}` : 
-                    `${process.platform === 'darwin' ? '⌘' : 'Ctrl'}+Click to preview, right-click for more options: ${resolvedUrl}`;
-
                 // For multivariant playlists, use _handleUriClick which will open the playlist
-                // For regular playlists, use _previewSegment for the preview functionality
-                const command = isMultiVariant ? 'm3u8._handleUriClick' : 'm3u8._previewSegment';
+                // For regular playlists, use _playSegment for the preview functionality
+                const command = isMultiVariant ? 'm3u8._handleUriClick' : 'm3u8._playSegment';
                 const args = isMultiVariant ? 
                     JSON.stringify([resolvedUrl, true]) : 
                     JSON.stringify([resolvedUrl, false, currentInitSegment?.resolvedUri]);

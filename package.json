@@ -54,8 +54,8 @@
         "category": "M3U8 / HLS"
       },
       {
-        "command": "m3u8._previewSegment",
-        "title": "Preview Segment",
+        "command": "m3u8._playSegment",
+        "title": "Play Segment",
         "category": "M3U8 / HLS"
       },
       {
@@ -203,7 +203,7 @@
         "linux": "ctrl+click",
         "when": "editorTextFocus && editorLangId == m3u8",
         "args": [
-          "preview"
+          "play"
         ]
       },
       {
@@ -222,7 +222,7 @@
       "editor/context": [
         {
           "when": "editorTextFocus && editorLangId == m3u8 && !m3u8.isMultiVariantPlaylist",
-          "command": "m3u8._previewSegment",
+          "command": "m3u8._playSegment",
           "group": "m3u8@1"
         },
         {

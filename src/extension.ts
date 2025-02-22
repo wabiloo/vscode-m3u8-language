@@ -68,7 +68,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Create providers
     const documentLinkProvider = new M3U8DocumentLinkProvider(remotePlaylistMap, log, playlistUrlService);
     const foldingRangeProvider = new M3U8FoldingRangeProvider(tagDefinitions);
-    const hoverProvider = new M3U8HoverProvider(tagDefinitions);
+    const hoverProvider = new M3U8HoverProvider(tagDefinitions, playlistUrlService, remotePlaylistMap);
     const remoteContentProvider = new M3U8RemoteContentProvider(remoteDocumentContentMap);
 
     // Register providers
@@ -129,17 +129,17 @@ export function activate(context: vscode.ExtensionContext) {
             }
             
             // The mode can come from the keybinding args
-            const mode = args?.[0] || 'preview';
+            const mode = args?.[0] || 'play';
             log(`Handling URI click for ${uri} with mode ${mode}`);
             
             // Handle as a segment with preview/download mode
-            if (mode === 'preview') {
-                await vscode.commands.executeCommand('m3u8._previewSegment', uri);
+            if (mode === 'play') {
+                await vscode.commands.executeCommand('m3u8._playSegment', uri);
             } else if (mode === 'download') {
                 await vscode.commands.executeCommand('m3u8._downloadSegment', uri);
             }
         }),
-        vscode.commands.registerCommand('m3u8._previewSegment', async (uri?: string, isFromMultivariant?: boolean, initSegmentUri?: string) => {
+        vscode.commands.registerCommand('m3u8._playSegment', async (uri?: string, isFromMultivariant?: boolean, initSegmentUri?: string) => {
             if (typeof uri === 'string') {
                 await segmentPreviewService.showSegmentPreview(uri, initSegmentUri);
             } else {

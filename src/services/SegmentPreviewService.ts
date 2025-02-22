@@ -31,8 +31,8 @@ export class SegmentPreviewService {
 
     private createWebviewPanel(segmentUri: string): vscode.WebviewPanel {
         const panel = vscode.window.createWebviewPanel(
-            'segmentPreview',
-            'Segment Preview',
+            'segmentPlayer',
+            'Segment Player',
             {
                 viewColumn: vscode.ViewColumn.Beside,
                 preserveFocus: true
@@ -62,7 +62,7 @@ export class SegmentPreviewService {
     }
 
     private getWebviewContent(segmentUri: string, playlistUri: vscode.Uri): string {
-        const templatePath = path.join(this.context.extensionPath, 'src', 'templates', 'segmentPreview.html');
+        const templatePath = path.join(this.context.extensionPath, 'src', 'templates', 'segmentPlayer.html');
         let content = fs.readFileSync(templatePath, 'utf8');
         
         // Replace template variables
@@ -74,7 +74,7 @@ export class SegmentPreviewService {
 
     public async showSegmentPreview(segmentUri: string, initSegmentUri?: string) {
         try {
-            this.log(`Opening segment preview for ${segmentUri}`);
+            this.log(`Opening segment player for ${segmentUri}`);
 
             // Create a single-segment playlist
             let playlistContent = '#EXTM3U\n#EXT-X-VERSION:3\n';
@@ -123,7 +123,7 @@ export class SegmentPreviewService {
             this.panel.reveal(vscode.ViewColumn.Beside, true);
 
         } catch (error: any) {
-            const errorMessage = `Failed to show segment preview: ${error.message}`;
+            const errorMessage = `Failed to show segment player: ${error.message}`;
             this.log(errorMessage);
             vscode.window.showErrorMessage(errorMessage);
         }

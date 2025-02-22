@@ -450,7 +450,7 @@ export class RemotePlaylistService {
         }
     }
 
-    async handleUriClick(uri: string, mode: 'preview' | 'download' = 'preview', isFromMultivariant: boolean = false) {
+    async handleUriClick(uri: string, mode: 'play' | 'download' = 'play', isFromMultivariant: boolean = false) {
         this.log(`handleUriClick called with uri: ${uri}, mode: ${mode}, isFromMultivariant: ${isFromMultivariant}`);
         
         if (this.isValidUrl(uri)) {
