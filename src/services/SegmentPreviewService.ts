@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { RemotePlaylistService } from './RemotePlaylistService';
 
@@ -60,157 +62,14 @@ export class SegmentPreviewService {
     }
 
     private getWebviewContent(segmentUri: string, playlistUri: vscode.Uri): string {
-        return `<!DOCTYPE html>
-        <html>
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-                <style>
-                    body {
-                        margin: 0;
-                        padding: 20px;
-                        background-color: var(--vscode-editor-background);
-                        color: var(--vscode-editor-foreground);
-                        font-family: var(--vscode-font-family);
-                        font-size: var(--vscode-font-size);
-                    }
-                    .segment-url {
-                        word-break: break-all;
-                        margin-bottom: 20px;
-                        padding: 10px;
-                        background-color: var(--vscode-input-background);
-                        border: 1px solid var(--vscode-input-border);
-                        border-radius: 4px;
-                        cursor: pointer;
-                    }
-                    .segment-url:hover {
-                        background-color: var(--vscode-list-hoverBackground);
-                    }
-                    .button-container {
-                        margin-bottom: 20px;
-                    }
-                    .download-button {
-                        background-color: var(--vscode-button-background);
-                        color: var(--vscode-button-foreground);
-                        border: none;
-                        padding: 8px 12px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-family: var(--vscode-font-family);
-                    }
-                    .download-button:hover {
-                        background-color: var(--vscode-button-hoverBackground);
-                    }
-                    video {
-                        width: 100%;
-                        max-width: 100%;
-                        background-color: black;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="segment-url" title="Cmd+Click in playlist to preview">${segmentUri}</div>
-                <div class="button-container">
-                    <button class="download-button" title="Download segment">Download Segment</button>
-                </div>
-                <video id="video" controls></video>
-                <script>
-                    const vscode = acquireVsCodeApi();
-                    const video = document.getElementById('video');
-
-                    // Handle cmd+click on segment URL
-                    document.querySelector('.segment-url').addEventListener('click', (e) => {
-                        if (e.metaKey || e.ctrlKey) {
-                            vscode.postMessage({
-                                command: 'downloadSegment',
-                                uri: '${segmentUri}'
-                            });
-                        }
-                    });
-
-                    // Handle download button click
-                    document.querySelector('.download-button').addEventListener('click', () => {
-                        vscode.postMessage({
-                            command: 'downloadSegment',
-                            uri: '${segmentUri}'
-                        });
-                    });
-
-                    // Request the playlist content for logging
-                    vscode.postMessage({ command: 'requestPlaylist' });
-
-                    // Handle messages from the extension
-                    window.addEventListener('message', event => {
-                        const message = event.data;
-                        switch (message.command) {
-                            case 'playlistContent':
-                                // Log the playlist content for debugging
-                                console.log('Generated HLS playlist:', message.content);
-                                if (Hls.isSupported()) {
-                                    const hls = new Hls({
-                                        debug: true,
-                                        enableWorker: false // Disable web workers in VS Code webview
-                                    });
-
-                                    // Add error handling
-                                    hls.on(Hls.Events.ERROR, function(event, data) {
-                                        console.log('HLS Error:', event, data);
-                                        if (data.fatal) {
-                                            switch(data.type) {
-                                                case Hls.ErrorTypes.NETWORK_ERROR:
-                                                    console.log('Fatal network error encountered');
-                                                    hls.startLoad();
-                                                    break;
-                                                case Hls.ErrorTypes.MEDIA_ERROR:
-                                                    console.log('Fatal media error encountered');
-                                                    hls.recoverMediaError();
-                                                    break;
-                                                default:
-                                                    console.log('Fatal error, cannot recover');
-                                                    hls.destroy();
-                                                    break;
-                                            }
-                                        }
-                                    });
-
-                                    // Add more event listeners for debugging
-                                    hls.on(Hls.Events.MANIFEST_LOADING, () => {
-                                        console.log('Manifest loading...');
-                                    });
-                                    hls.on(Hls.Events.MANIFEST_LOADED, (event, data) => {
-                                        console.log('Manifest loaded:', data);
-                                    });
-                                    hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-                                        console.log('Manifest parsed:', data);
-                                        video.play().catch(e => console.log('Play failed:', e));
-                                    });
-                                    hls.on(Hls.Events.LEVEL_LOADING, (event, data) => {
-                                        console.log('Level loading:', data);
-                                    });
-                                    hls.on(Hls.Events.LEVEL_LOADED, (event, data) => {
-                                        console.log('Level loaded:', data);
-                                    });
-                                    hls.on(Hls.Events.FRAG_LOADING, (event, data) => {
-                                        console.log('Fragment loading:', data);
-                                    });
-                                    hls.on(Hls.Events.FRAG_LOADED, (event, data) => {
-                                        console.log('Fragment loaded:', data);
-                                    });
-
-                                    const playlistUrl = '${this.panel?.webview.asWebviewUri(playlistUri)}';
-                                    console.log('Loading playlist from:', playlistUrl);
-                                    hls.loadSource(playlistUrl);
-                                    hls.attachMedia(video);
-                                } else {
-                                    console.log('HLS.js is not supported');
-                                }
-                                break;
-                        }
-                    });
-                </script>
-            </body>
-        </html>`;
+        const templatePath = path.join(this.context.extensionPath, 'src', 'templates', 'segmentPreview.html');
+        let content = fs.readFileSync(templatePath, 'utf8');
+        
+        // Replace template variables
+        content = content.replace(/\${segmentUri}/g, segmentUri);
+        content = content.replace(/\${playlistUri}/g, this.panel?.webview.asWebviewUri(playlistUri).toString() || '');
+        
+        return content;
     }
 
     public async showSegmentPreview(segmentUri: string, initSegmentUri?: string) {
