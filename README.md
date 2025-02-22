@@ -78,7 +78,7 @@ It leverages the Chrome DevTools Protocol, and exposes within a table all reques
 - Highlight in the table any request whose body contains a specific string.
 - Click on any row to show the HLS body in a tab. Ctrl/Cmd+click on multiple to open them in separate tabs (ideal to compare them using the standard VS Code diff tool).
 
-![Network Inspector](https://raw.githubusercontent.com/wabiloo/vscode-m3u8-language/main/images/network-inspector.png)
+![Network Inspector](https://raw.githubusercontent.com/wabiloo/vscode-m3u8-language/main/images/network-inspector.gif)
 
 This feature should work with any web player that uses the Chrome DevTools Protocol, including Chrome, Edge and any Chromium-based browser.
 
