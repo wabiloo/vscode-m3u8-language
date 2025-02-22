@@ -1,21 +1,30 @@
 import * as vscode from 'vscode';
+import { PlaylistUrlService } from '../services/PlaylistUrlService';
 import { RemotePlaylistInfo } from '../types';
 
 export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
     constructor(
         private remotePlaylistMap: Map<string, RemotePlaylistInfo>,
-        private log: (message: string) => void
+        private log: (message: string) => void,
+        private playlistUrlService: PlaylistUrlService
     ) {}
 
-    private isMultiVariantPlaylist(content: string): boolean {
-        return content.includes('#EXT-X-STREAM-INF:') || content.includes('#EXT-X-MEDIA:');
+    private getBaseUri(document: vscode.TextDocument): string | undefined {
+        // First try to get the base URL from remote playlist map
+        const remoteBaseUri = this.remotePlaylistMap.get(document.uri.toString())?.uri;
+        if (remoteBaseUri) {
+            return remoteBaseUri;
+        }
+
+        // If not found, try to get it from the PlaylistUrlService
+        return this.playlistUrlService.getDocumentBaseUrl(document.uri.toString());
     }
 
-    provideDocumentLinks(document: vscode.TextDocument): vscode.DocumentLink[] {
+    async provideDocumentLinks(document: vscode.TextDocument): Promise<vscode.DocumentLink[]> {
         this.log(`Providing document links for ${document.uri.toString()}`);
         const links: vscode.DocumentLink[] = [];
-        const baseUri = this.remotePlaylistMap.get(document.uri.toString())?.uri;
-        const isMultiVariant = this.isMultiVariantPlaylist(document.getText());
+        const baseUri = this.getBaseUri(document);
+        const isMultiVariant = this.playlistUrlService.isMultiVariantPlaylist(document.getText());
         this.log(`Document is ${isMultiVariant ? 'a multivariant playlist' : 'a regular playlist'}`);
 
         // Track the current init segment
@@ -31,28 +40,14 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
                     const uriMatch = text.match(/URI="([^"]+)"|URI=([^,\s"]+)/);
                     if (uriMatch) {
                         const uri = uriMatch[1] || uriMatch[2];
-                        let resolvedUri = uri;
-                        if (baseUri && !this.isValidUrl(uri)) {
-                            resolvedUri = new URL(uri, baseUri).toString();
-                        }
+                        const resolvedUri = baseUri && !this.playlistUrlService.isValidUrl(uri) ? 
+                            this.playlistUrlService.resolveUrl(uri, baseUri) : 
+                            uri;
                         currentInitSegment = { uri, resolvedUri };
-                        
-                        // Create a link for the init segment itself
-                        const startPos = line.text.indexOf(uri);
-                        const range = new vscode.Range(
-                            new vscode.Position(i, startPos),
-                            new vscode.Position(i, startPos + uri.length)
-                        );
-                        
-                        const link = new vscode.DocumentLink(range);
-                        link.tooltip = `${process.platform === 'darwin' ? '⌘' : 'Ctrl'}+Click to preview, right-click for more options: ${resolvedUri}`;
-                        link.target = vscode.Uri.parse(`command:m3u8._previewSegment?${encodeURIComponent(JSON.stringify([resolvedUri]))}`);
-                        links.push(link);
                     }
-                    continue;
                 }
 
-                // Handle URIs in any tag attributes
+                // Handle URIs in quoted attributes (e.g., URI="example.m3u8")
                 const uriMatches = text.matchAll(/URI="([^"]+)"/g);
                 for (const match of uriMatches) {
                     const uri = match[1];
@@ -65,8 +60,8 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
                     
                     const link = new vscode.DocumentLink(range);
                     let resolvedUrl = uri;
-                    if (baseUri && !this.isValidUrl(uri)) {
-                        resolvedUrl = new URL(uri, baseUri).toString();
+                    if (baseUri && !this.playlistUrlService.isValidUrl(uri)) {
+                        resolvedUrl = this.playlistUrlService.resolveUrl(uri, baseUri);
                         this.log(`  Resolved relative URI to: ${resolvedUrl}`);
                     }
                     
@@ -100,8 +95,8 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
                     
                     const link = new vscode.DocumentLink(range);
                     let resolvedUrl = uri;
-                    if (baseUri && !this.isValidUrl(uri)) {
-                        resolvedUrl = new URL(uri, baseUri).toString();
+                    if (baseUri && !this.playlistUrlService.isValidUrl(uri)) {
+                        resolvedUrl = this.playlistUrlService.resolveUrl(uri, baseUri);
                         this.log(`  Resolved relative URI to: ${resolvedUrl}`);
                     }
                     
@@ -132,8 +127,8 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
                 const link = new vscode.DocumentLink(range);
                 
                 let resolvedUrl = text;
-                if (baseUri && !this.isValidUrl(text)) {
-                    resolvedUrl = new URL(text, baseUri).toString();
+                if (baseUri && !this.playlistUrlService.isValidUrl(text)) {
+                    resolvedUrl = this.playlistUrlService.resolveUrl(text, baseUri);
                     this.log(`  Resolved relative URI to: ${resolvedUrl}`);
                 }
 
@@ -157,14 +152,5 @@ export class M3U8DocumentLinkProvider implements vscode.DocumentLinkProvider {
 
         this.log(`Found ${links.length} links in document`);
         return links;
-    }
-
-    private isValidUrl(str: string): boolean {
-        try {
-            new URL(str);
-            return true;
-        } catch {
-            return false;
-        }
     }
 } 

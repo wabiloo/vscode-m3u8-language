@@ -8,6 +8,7 @@ import { M3U8HoverProvider } from './providers/HoverProvider';
 import { NetworkInspectorProvider } from './providers/NetworkInspectorProvider';
 import { M3U8RemoteContentProvider } from './providers/RemoteContentProvider';
 import { ChromeDevToolsService } from './services/ChromeDevToolsService';
+import { PlaylistUrlService } from './services/PlaylistUrlService';
 import { RemotePlaylistService } from './services/RemotePlaylistService';
 import { SCTE35Service } from './services/SCTE35Service';
 import { SegmentPreviewService } from './services/SegmentPreviewService';
@@ -21,6 +22,7 @@ let scte35Service: SCTE35Service;
 let chromeDevToolsService: ChromeDevToolsService;
 let networkInspectorProvider: NetworkInspectorProvider;
 let segmentPreviewService: SegmentPreviewService;
+let playlistUrlService: PlaylistUrlService;
 const remotePlaylistMap = new Map<string, RemotePlaylistInfo>();
 const remoteDocumentContentMap = new Map<string, RemoteDocumentContent>();
 
@@ -46,7 +48,7 @@ function isValidUrl(str: string): boolean {
 
 export function activate(context: vscode.ExtensionContext) {
     // Create output channel for logging
-    outputChannel = vscode.window.createOutputChannel('M3U8 / HLS');
+    outputChannel = vscode.window.createOutputChannel('M3U8 Language');
     context.subscriptions.push(outputChannel);
 
     log('M3U8 / HLS extension activating...');
@@ -54,25 +56,32 @@ export function activate(context: vscode.ExtensionContext) {
     // Load tag definitions
     const tagDefinitions = loadHLSTagDefinitions(context);
 
-    // Initialize services
+    // Create services
+    playlistUrlService = new PlaylistUrlService(log);
     decorationManager = new DecorationManager(context, tagDefinitions);
-    remotePlaylistService = new RemotePlaylistService(remotePlaylistMap, remoteDocumentContentMap, context, log);
+    remotePlaylistService = new RemotePlaylistService(remotePlaylistMap, remoteDocumentContentMap, context, log, playlistUrlService);
     segmentPreviewService = new SegmentPreviewService(context, log, remotePlaylistService);
     scte35Service = new SCTE35Service(tagDefinitions);
     chromeDevToolsService = new ChromeDevToolsService(log);
-    networkInspectorProvider = new NetworkInspectorProvider(context, chromeDevToolsService, log);
+    networkInspectorProvider = new NetworkInspectorProvider(context, chromeDevToolsService, log, playlistUrlService);
+
+    // Create providers
+    const documentLinkProvider = new M3U8DocumentLinkProvider(remotePlaylistMap, log, playlistUrlService);
+    const foldingRangeProvider = new M3U8FoldingRangeProvider(tagDefinitions);
+    const hoverProvider = new M3U8HoverProvider(tagDefinitions);
+    const remoteContentProvider = new M3U8RemoteContentProvider(remoteDocumentContentMap);
 
     // Register providers
     context.subscriptions.push(
-        vscode.languages.registerHoverProvider('m3u8', new M3U8HoverProvider(tagDefinitions)),
-        vscode.languages.registerFoldingRangeProvider('m3u8', new M3U8FoldingRangeProvider(tagDefinitions)),
+        vscode.languages.registerHoverProvider('m3u8', hoverProvider),
+        vscode.languages.registerFoldingRangeProvider('m3u8', foldingRangeProvider),
         vscode.languages.registerDocumentLinkProvider(
             { language: 'm3u8', scheme: '*' },
-            new M3U8DocumentLinkProvider(remotePlaylistMap, log)
+            documentLinkProvider
         ),
         vscode.workspace.registerTextDocumentContentProvider(
             'm3u8-remote',
-            new M3U8RemoteContentProvider(remoteDocumentContentMap)
+            remoteContentProvider
         ),
         vscode.languages.registerCodeLensProvider('m3u8', {
             provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {

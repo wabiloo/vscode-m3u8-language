@@ -4,6 +4,7 @@ import * as path from 'path';
 import { URL } from 'url';
 import * as vscode from 'vscode';
 import { RemoteDocumentContent, RemotePlaylistInfo } from '../types';
+import { PlaylistUrlService } from './PlaylistUrlService';
 
 export class RemotePlaylistService {
     private statusBarItem: vscode.StatusBarItem;
@@ -16,7 +17,8 @@ export class RemotePlaylistService {
         private remotePlaylistMap: Map<string, RemotePlaylistInfo>,
         private remoteDocumentContentMap: Map<string, RemoteDocumentContent>,
         private context: vscode.ExtensionContext,
-        private log: (message: string) => void
+        private log: (message: string) => void,
+        private playlistUrlService: PlaylistUrlService
     ) {
         this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
         this.statusBarItem.command = 'm3u8.toggleAutoRefresh';
@@ -175,7 +177,7 @@ export class RemotePlaylistService {
     }
 
     private isMultiVariantPlaylist(content: string): boolean {
-        return content.includes('#EXT-X-STREAM-INF:') || content.includes('#EXT-X-MEDIA:');
+        return this.playlistUrlService.isMultiVariantPlaylist(content);
     }
 
     async toggleAutoRefresh() {

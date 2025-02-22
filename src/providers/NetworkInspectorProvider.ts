@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { ChromeDevToolsService } from '../services/ChromeDevToolsService';
+import { PlaylistUrlService } from '../services/PlaylistUrlService';
 
 export class NetworkInspectorProvider {
     private panel: vscode.WebviewPanel | undefined;
@@ -14,7 +15,8 @@ export class NetworkInspectorProvider {
     constructor(
         private context: vscode.ExtensionContext,
         private chromeService: ChromeDevToolsService,
-        private log: (message: string) => void
+        private log: (message: string) => void,
+        private playlistUrlService: PlaylistUrlService
     ) {
         // Register our custom m3u8-response scheme
         this.disposables.push(
@@ -204,6 +206,9 @@ export class NetworkInspectorProvider {
                 language: 'm3u8'
             });
             
+            // Store the base URL in the PlaylistUrlService
+            this.playlistUrlService.setDocumentBaseUrl(doc.uri.toString(), cached.url);
+            
             this.currentEditor = await vscode.window.showTextDocument(doc, {
                 preview: true,
                 preserveFocus: true,
@@ -226,6 +231,8 @@ export class NetworkInspectorProvider {
                     if (this.currentPreviewId === cached.id) {
                         this.currentPreviewId = undefined;
                     }
+                    // Clean up the base URL when document is closed
+                    this.playlistUrlService.removeDocumentBaseUrl(doc.uri.toString());
                     disposable.dispose();
                 }
             });
@@ -239,6 +246,9 @@ export class NetworkInspectorProvider {
             );
             edit.replace(this.currentEditor.document.uri, fullRange, modifiedBody);
             await vscode.workspace.applyEdit(edit);
+            
+            // Update the base URL
+            this.playlistUrlService.setDocumentBaseUrl(this.currentEditor.document.uri.toString(), cached.url);
             
             if (!forceNewTab) {
                 this.currentPreviewId = cached.id;
