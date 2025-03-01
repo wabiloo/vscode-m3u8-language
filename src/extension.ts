@@ -95,6 +95,19 @@ export function activate(context: vscode.ExtensionContext) {
                     if (text.startsWith('#EXT')) {
                         const tagInfo = scte35Service.extractTag(text);
                         if (tagInfo && tagDefinitions[tagInfo.tag]?.scte35) {
+                            // For DATERANGE tags, only show CodeLens if they actually contain SCTE35 data
+                            if (tagInfo.tag === 'EXT-X-DATERANGE') {
+                                // Check if the tag contains any SCTE35 attributes
+                                const hasScte35Data = 
+                                    tagInfo.params.includes('SCTE35-CMD=') || 
+                                    tagInfo.params.includes('SCTE35-OUT=') || 
+                                    tagInfo.params.includes('SCTE35-IN=');
+                                
+                                if (!hasScte35Data) {
+                                    continue; // Skip this tag if it doesn't contain SCTE35 data
+                                }
+                            }
+                            
                             const range = new vscode.Range(i, 0, i, text.length);
                             const command = {
                                 title: 'Parse SCTE-35',

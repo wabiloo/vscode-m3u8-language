@@ -1,5 +1,8 @@
 # Change Log
 
+## [1.5.3] - 2025-03-01
+- Fix: Codelens not showing for #EXT-X-DATERANGE tags without SCTE35 data
+
 ## [1.5.0] - 2025-02-22
 - Play and download segments from media playlists, including support for initialization segments
 - Network inspector with support for Chrome DevTools Protocol

@@ -2,7 +2,7 @@
   "name": "m3u8-hls-vscode",
   "displayName": "M3U8 / HLS Language Support",
   "description": "Language support for M3U8 (HLS) files with syntax highlighting, support for remote playlists and web player monitoring",
-  "version": "1.5.1",
+  "version": "1.5.3",
   "engines": {
     "vscode": "^1.85.0"
   },
