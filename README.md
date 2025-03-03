@@ -68,7 +68,7 @@ When the semgents require an initialization segment, the extension will automati
 
 Ever tried debugging HLS streams in a browser?  I find it is a major pain...
 
-So, this extension also makes it possible to work with streams being played in a web player (via palette command `Open Network Inspector`).
+So, this extension also makes it possible to work with streams being played in a web player (via palette command `Open Browser Network Inspector`).
 It leverages the Chrome DevTools Protocol, and exposes within a table all requests for M3U8 playlists (on-demand or live).
 
 - Monitor multiple browser tabs, and easily identify what M3U8 requests are made by which tab.
@@ -85,6 +85,16 @@ This feature should work with any web player that uses the Chrome DevTools Proto
 Start your browser with the remote debugging port enabled, which usually involves executing it with the command line argument `--remote-debugging-port=9222`.
 If the extension can't detect it, it will offer to (re)start your browser with the correct argument.
 
+You can configure the path to your Chrome/Chromium/Edge executable and the profile directory to use in the extension settings:
+* `m3u8.chrome.executablePath`: Set this to the path of your browser executable if it's not in the default location or not automatically detected.
+* `m3u8.chrome.profileDirectory`: Set this to use a specific browser profile. Chrome typically stores profiles in directories named 'Default' or 'Profile X' (where X is a number like 1, 2, etc.). Common values are:
+  * `Default` - For the default profile
+  * `Profile 1`, `Profile 2`, etc. - For additional profiles
+
+By using a specific profile, you can work with multiple browser instances simultaneously, with only one having the remote debugging port enabled. This ensures that you don't need to restart the browser when switching just to use the Network Inspector. I would recommend having a specific profile used for this purpose, and then using the default profile for normal browsing.
+
+When a browser instance is launched by the extension, it will open a new tab with a web player page. By default, this is the HLS.js demo page, but you can configure a different URL in the settings (`m3u8.chrome.defaultPlayerUrl`). 
+
 
 ## Extension Settings
 
@@ -100,6 +110,9 @@ This extension contributes the following settings:
 * `m3u8.features.tagColors`: List of tag colors in format `"TAG,borderColor,backgroundColor"` (default: `[]`)
 * `m3u8.features.defaultColors`: Default colors for odd/even segments when no tag colors match (see below)
 * `m3u8.features.showTagDocumentation`: Show documentation tooltips for HLS tags (default: `true`)
+* `m3u8.chrome.executablePath`: Path to the Chrome/Chromium/Edge executable for the Network Inspector. If not set, the extension will try to find a compatible browser automatically.
+* `m3u8.chrome.profileDirectory`: Browser profile directory to use with the Network Inspector. If set, it will be used with the `--profile-directory` command line argument.
+* `m3u8.chrome.defaultPlayerUrl`: URL to use when creating new browser tabs for HLS monitoring (default: `https://hlsjs.video-dev.org/demo/`). This page should ideally contain HLS video content for testing.
 
 ### Default Colors
 
@@ -128,7 +141,7 @@ The extension provides the following commands:
 * `M3U8 / HLS: Refresh Current Playlist`: Manually refresh the current remote playlist
 * `M3U8 / HLS: Toggle Auto-Refresh`: Enable or disable automatic refreshing of the current remote playlist (not available for multi-variant playlists)
 * `M3U8 / HLS: Parse SCTE-35 Payload`: Parse a SCTE-35 payload and display the results in a new tab
-* `M3U8 / HLS: Open Network Inspector`: Hook onto a web browser to monitor HLS streams
+* `M3U8 / HLS: Open Browser Network Inspector`: Hook onto a web browser to monitor HLS streams
 
 ## Examples
 

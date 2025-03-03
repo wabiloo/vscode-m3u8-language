@@ -27,7 +27,7 @@ export class NetworkInspectorProvider {
     }
 
     private getWebviewContent(): string {
-        const templatePath = path.join(this.context.extensionPath, 'src', 'templates', 'networkInspector.html');
+        const templatePath = path.join(this.context.extensionPath, 'out', 'templates', 'networkInspector.html');
         let content = fs.readFileSync(templatePath, 'utf8');
         
         // Replace platform-specific keyboard shortcut

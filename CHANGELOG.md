@@ -1,5 +1,8 @@
 # Change Log
 
+## [1.6.0] - 2025-03-01
+- Configurable browser executable, profile and default player URL
+
 ## [1.5.3] - 2025-03-01
 - Fix: Codelens not showing for #EXT-X-DATERANGE tags without SCTE35 data
 

@@ -62,7 +62,7 @@ export class SegmentPreviewService {
     }
 
     private getWebviewContent(segmentUri: string, playlistUri: vscode.Uri): string {
-        const templatePath = path.join(this.context.extensionPath, 'src', 'templates', 'segmentPlayer.html');
+        const templatePath = path.join(this.context.extensionPath, 'out', 'templates', 'segmentPlayer.html');
         let content = fs.readFileSync(templatePath, 'utf8');
         
         // Replace template variables

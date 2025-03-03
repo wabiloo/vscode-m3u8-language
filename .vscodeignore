@@ -11,3 +11,6 @@ vsc-extension-quickstart.md
 examples/**
 .pytest_cache/**
 !images/icon.png
+**/*.mp4
+**/*.pxd
+**/*.gif

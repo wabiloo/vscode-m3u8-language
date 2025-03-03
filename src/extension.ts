@@ -48,7 +48,7 @@ function isValidUrl(str: string): boolean {
 
 export function activate(context: vscode.ExtensionContext) {
     // Create output channel for logging
-    outputChannel = vscode.window.createOutputChannel('M3U8 Language');
+    outputChannel = vscode.window.createOutputChannel('M3U8 / HLS');
     context.subscriptions.push(outputChannel);
 
     log('M3U8 / HLS extension activating...');

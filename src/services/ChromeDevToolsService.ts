@@ -1,5 +1,6 @@
 import { exec, spawn } from 'child_process';
 import CDP from 'chrome-remote-interface';
+import * as fs from 'fs';
 import * as http from 'http';
 import { promisify } from 'util';
 import * as vscode from 'vscode';
@@ -124,9 +125,73 @@ export class ChromeDevToolsService {
         });
     }
 
-    private async selectTab(): Promise<ChromeTab | undefined> {
+    private async selectTab(recursionCount: number = 0): Promise<ChromeTab | undefined> {
         try {
+            // Prevent infinite recursion
+            if (recursionCount > 2) {
+                this.log('Reached maximum recursion depth when selecting tab. Aborting.');
+                vscode.window.showErrorMessage('Failed to find or create a suitable browser tab for monitoring.');
+                return undefined;
+            }
+
             const tabs = await this.getChromeTabs();
+            this.log(`Found ${tabs.length} browser tabs, filtering to find suitable ones...`);
+            
+            // Log all tabs for debugging
+            tabs.forEach((tab, index) => {
+                this.log(`Tab ${index + 1}: "${tab.title}" - ${tab.url}`);
+            });
+
+            // First, check if we have any "New Tab" pages that we can reuse
+            // These are better than creating new tabs as they're already open
+            const newTabPages = tabs.filter(tab => {
+                if (!tab.webSocketDebuggerUrl) {
+                    return false;
+                }
+                
+                // Look for common "New Tab" page patterns
+                return (tab.title === 'New Tab' || tab.title === 'New page' || tab.title === 'Start Page') &&
+                       (tab.url === 'chrome://newtab/' || tab.url === 'edge://newtab/' || 
+                        tab.url === 'about:blank' || tab.url.includes('chrome://startpage'));
+            });
+            
+            if (newTabPages.length > 0) {
+                // We found a "New Tab" page we can reuse
+                const newTabPage = newTabPages[0];
+                this.log(`Found a "New Tab" page to reuse: ${newTabPage.title} (${newTabPage.url})`);
+                
+                // Navigate it to our test URL
+                try {
+                    // Create a CDP connection to this tab
+                    const tempClient = await CDP({ target: newTabPage.webSocketDebuggerUrl });
+                    
+                    // Get the demo URL from configuration
+                    const config = vscode.workspace.getConfiguration('m3u8.chrome');
+                    const defaultPlayerUrl = config.get<string>('defaultPlayerUrl', 'https://hlsjs.video-dev.org/demo/');
+                    
+                    // Navigate to the demo URL
+                    this.log(`Navigating "New Tab" page to player URL: ${defaultPlayerUrl}...`);
+                    await tempClient.Page.enable();
+                    await tempClient.Page.navigate({ url: defaultPlayerUrl });
+                    
+                    // Wait for navigation to complete
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    // Close the temporary connection
+                    await tempClient.close();
+                    
+                    // Wait a bit more for the page to fully load
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    // Try again with the updated tab
+                    return this.selectTab(recursionCount + 1);
+                } catch (error) {
+                    this.log(`Error reusing "New Tab" page: ${error}`);
+                    // Continue with normal tab selection
+                }
+            }
+
+            // Normal tab filtering
             const realTabs = tabs.filter(tab => {
                 // Must have a debugging URL
                 if (!tab.webSocketDebuggerUrl) {
@@ -139,13 +204,25 @@ export class ChromeDevToolsService {
                     'devtools:', 
                     'chrome-extension:',
                     'blob:',
-                    'about:blank',
                     'chrome-search:',
                     'edge:', 
                     'view-source:',
                     'data:', 
                     'file://'
                 ];
+
+                // Special case: if this is a tab we just created or navigated to example.com
+                // This prevents the infinite loop of creating new tabs
+                const config = vscode.workspace.getConfiguration('m3u8.chrome');
+                const defaultPlayerUrl = config.get<string>('defaultPlayerUrl', 'https://hlsjs.video-dev.org/demo/');
+                const playerUrlNoProtocol = defaultPlayerUrl.replace(/^https?:\/\//, '');
+                
+                if (tab.url === defaultPlayerUrl || 
+                    tab.url.replace(/^https?:\/\//, '') === playerUrlNoProtocol ||
+                    (recursionCount > 0 && tab.url === 'about:blank')) {
+                    this.log('Found our player page, accepting it.');
+                    return true;
+                }
 
                 // Filter out common advertising, analytics, and widget domains
                 const excludeDomains = [
@@ -214,18 +291,78 @@ export class ChromeDevToolsService {
                 return true;
             });
 
+            this.log(`Found ${realTabs.length} suitable tabs after filtering`);
+
             if (realTabs.length === 0) {
-                // No suitable tabs found, create a new one
+                // No suitable tabs found, create a new one with a real URL
                 this.log('No suitable tabs found, creating a new one...');
-                const { command, args } = this.getChromeCommand();
-                spawn(command, [...args, 'about:blank'], {
-                    detached: true,
-                    stdio: 'ignore'
-                }).unref();
                 
-                // Wait a bit and try again
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                return this.selectTab();
+                try {
+                    // Try to create a tab using CDP's Target.createTarget
+                    // This is more reliable than spawning a new browser process
+                    this.log('Creating a new tab using CDP...');
+                    
+                    // Get the demo URL from configuration
+                    const config = vscode.workspace.getConfiguration('m3u8.chrome');
+                    const defaultPlayerUrl = config.get<string>('defaultPlayerUrl', 'https://hlsjs.video-dev.org/demo/');
+                    
+                    // First, get any existing CDP client
+                    const existingTabs = tabs.filter(tab => tab.webSocketDebuggerUrl);
+                    if (existingTabs.length > 0) {
+                        const tempClient = await CDP({ target: existingTabs[0].webSocketDebuggerUrl });
+                        
+                        // Create a new target (tab)
+                        await tempClient.Target.createTarget({ url: defaultPlayerUrl });
+                        
+                        // Close the temporary connection
+                        await tempClient.close();
+                        
+                        // Wait for the tab to be created and loaded
+                        this.log('Waiting for the new tab to load...');
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        
+                        // Try again with the new tab
+                        return this.selectTab(recursionCount + 1);
+                    } else {
+                        // Fallback to spawning a new browser process
+                        this.log('No existing tabs with debugging URL, falling back to spawning a new browser process...');
+                        this.log(`Falling back to launching browser with URL: ${defaultPlayerUrl}`);
+                        
+                        spawn(this.getChromeCommand().command, [...this.getChromeCommand().args, defaultPlayerUrl], {
+                            detached: true,
+                            stdio: 'ignore'
+                        }).unref();
+                        
+                        // Wait a bit longer to ensure the tab is fully loaded
+                        this.log('Waiting for the new tab to load...');
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        
+                        // Try again with incremented recursion counter
+                        return this.selectTab(recursionCount + 1);
+                    }
+                } catch (error) {
+                    this.log(`Error creating new tab: ${error}`);
+                    
+                    // Fallback to spawning a new browser process
+                    const { command, args } = this.getChromeCommand();
+                    
+                    const config = vscode.workspace.getConfiguration('m3u8.chrome');
+                    const defaultPlayerUrl = config.get<string>('defaultPlayerUrl', 'https://hlsjs.video-dev.org/demo/');
+                    
+                    this.log(`Falling back to launching browser with URL: ${defaultPlayerUrl}`);
+                    
+                    spawn(command, [...args, defaultPlayerUrl], {
+                        detached: true,
+                        stdio: 'ignore'
+                    }).unref();
+                    
+                    // Wait a bit longer to ensure the tab is fully loaded
+                    this.log('Waiting for the new tab to load...');
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    
+                    // Try again with incremented recursion counter
+                    return this.selectTab(recursionCount + 1);
+                }
             }
 
             if (realTabs.length === 1) {
@@ -245,6 +382,12 @@ export class ChromeDevToolsService {
                 matchOnDetail: true
             });
 
+            if (selected) {
+                this.log(`User selected tab: ${selected.tab.title} (${selected.tab.url})`);
+            } else {
+                this.log('User cancelled tab selection');
+            }
+
             return selected?.tab;
         } catch (error) {
             this.log(`Error selecting tab: ${error}`);
@@ -253,151 +396,245 @@ export class ChromeDevToolsService {
     }
 
     private getChromeCommand(): { command: string, args: string[] } {
+        // Get the configuration
+        const config = vscode.workspace.getConfiguration('m3u8.chrome');
+        const executablePath = config.get<string>('executablePath', '');
+        const profileDirectory = config.get<string>('profileDirectory', '');
+        
+        // Base arguments
+        const baseArgs = ['--remote-debugging-port=9222'];
+        
+        // Add profile directory if specified
+        if (profileDirectory) {
+            baseArgs.push(`--profile-directory=${profileDirectory}`);
+            this.log(`Using Chrome profile directory: ${profileDirectory}`);
+        }
+        
+        // If user specified a custom path and it exists, use it
+        if (executablePath && fs.existsSync(executablePath)) {
+            this.log(`Using custom Chrome path: ${executablePath}`);
+            return {
+                command: executablePath,
+                args: baseArgs
+            };
+        }
+        
+        // Otherwise use default paths based on platform
+        this.log(`No custom Chrome path specified or path doesn't exist, using default paths for platform: ${process.platform}`);
+        
         switch (process.platform) {
             case 'win32':
+                // Check for Chromium in common locations
+                const winPaths = [
+                    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+                    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+                    'C:\\Program Files\\Chromium\\Application\\chrome.exe',
+                    'C:\\Program Files (x86)\\Chromium\\Application\\chrome.exe',
+                    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+                    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
+                ];
+                
+                for (const path of winPaths) {
+                    if (fs.existsSync(path)) {
+                        this.log(`Found browser at: ${path}`);
+                        return {
+                            command: path,
+                            args: baseArgs
+                        };
+                    }
+                }
+                
+                this.log(`No browser found in common locations, defaulting to: C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe`);
                 return {
                     command: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-                    args: ['--remote-debugging-port=9222']
+                    args: baseArgs
                 };
+                
             case 'darwin':
+                // Check for Chromium in common locations
+                const macPaths = [
+                    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+                    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+                    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'
+                ];
+                
+                for (const path of macPaths) {
+                    if (fs.existsSync(path)) {
+                        this.log(`Found browser at: ${path}`);
+                        return {
+                            command: path,
+                            args: baseArgs
+                        };
+                    }
+                }
+                
+                this.log(`No browser found in common locations, defaulting to: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome`);
                 return {
                     command: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-                    args: ['--remote-debugging-port=9222']
+                    args: baseArgs
                 };
+                
             default:
+                // For Linux, try to find the browser using 'which'
+                try {
+                    const browsers = ['google-chrome', 'chromium', 'chromium-browser', 'microsoft-edge'];
+                    for (const browser of browsers) {
+                        try {
+                            const { stdout } = require('child_process').execSync(`which ${browser}`, { encoding: 'utf8' });
+                            if (stdout && stdout.trim()) {
+                                const browserPath = stdout.trim();
+                                this.log(`Found browser at: ${browserPath}`);
+                                return {
+                                    command: browserPath,
+                                    args: baseArgs
+                                };
+                            }
+                        } catch (e) {
+                            // Continue to next browser
+                        }
+                    }
+                } catch (e) {
+                    this.log(`Error finding browser on Linux: ${e}`);
+                }
+                
+                this.log(`No browser found in PATH, defaulting to: google-chrome`);
                 return {
                     command: 'google-chrome',
-                    args: ['--remote-debugging-port=9222']
+                    args: baseArgs
                 };
         }
     }
 
     private async isChromeDebuggingEnabled(): Promise<boolean> {
-        this.log('Checking if Chrome debugging is enabled...');
+        this.log('Checking if browser debugging is enabled...');
         return new Promise((resolve) => {
             http.get('http://localhost:9222/json', (res) => {
                 const isEnabled = res.statusCode === 200;
-                this.log(`Chrome debugging check result: ${isEnabled ? 'enabled' : 'disabled'} (status: ${res.statusCode})`);
+                this.log(`Browser debugging check result: ${isEnabled ? 'enabled' : 'disabled'} (status: ${res.statusCode})`);
                 resolve(isEnabled);
             }).on('error', (err) => {
-                this.log(`Chrome debugging check error: ${err.message}`);
+                this.log(`Browser debugging check error: ${err.message}`);
                 resolve(false);
             });
         });
     }
 
     private async waitForChromeToBeReady(maxAttempts: number = 10, delayMs: number = 500): Promise<boolean> {
-        this.log(`Waiting for Chrome to be ready (max ${maxAttempts} attempts, ${delayMs}ms delay)...`);
+        this.log(`Waiting for browser to be ready (max ${maxAttempts} attempts, ${delayMs}ms delay)...`);
         for (let i = 0; i < maxAttempts; i++) {
-            this.log(`Attempt ${i + 1}/${maxAttempts} to check if Chrome is ready...`);
+            this.log(`Attempt ${i + 1}/${maxAttempts} to check if browser is ready...`);
             const isReady = await this.isChromeDebuggingEnabled();
             if (isReady) {
-                this.log('Chrome is ready!');
+                this.log('Browser is ready!');
                 return true;
             }
-            this.log(`Chrome not ready yet, waiting ${delayMs}ms before next attempt...`);
+            this.log(`Browser not ready yet, waiting ${delayMs}ms before next attempt...`);
             await new Promise(resolve => setTimeout(resolve, delayMs));
         }
-        this.log('Chrome failed to become ready within the timeout period');
+        this.log('Browser failed to become ready within the timeout period');
         return false;
+    }
+
+    private async validateChromePath(): Promise<boolean> {
+        const config = vscode.workspace.getConfiguration('m3u8.chrome');
+        const executablePath = config.get<string>('executablePath', '');
+        
+        if (!executablePath) {
+            return true; // No custom path specified, so no validation needed
+        }
+        
+        if (!fs.existsSync(executablePath)) {
+            const message = `Browser executable not found at specified path: ${executablePath}`;
+            this.log(message);
+            vscode.window.showErrorMessage(message);
+            return false;
+        }
+        
+        return true;
     }
 
     private async killExistingChrome(): Promise<void> {
         return new Promise((resolve) => {
-            const cmd = process.platform === 'win32' ? 
-                'taskkill /F /IM chrome.exe' : 
-                'pkill -9 "Google Chrome"';
+            let cmd = '';
             
-            this.log(`Attempting to kill existing Chrome instances with command: ${cmd}`);
+            if (process.platform === 'win32') {
+                cmd = 'taskkill /F /IM chrome.exe & taskkill /F /IM chromium.exe & taskkill /F /IM msedge.exe';
+                this.log(`Attempting to kill existing browser instances with command: ${cmd}`);
+            } else if (process.platform === 'darwin') {
+                cmd = 'pkill -9 "Google Chrome" & pkill -9 "Chromium" & pkill -9 "Microsoft Edge"';
+                this.log(`Attempting to kill existing browser instances with command: ${cmd}`);
+            } else {
+                // Linux
+                cmd = 'pkill -9 chrome & pkill -9 chromium & pkill -9 chromium-browser & pkill -9 microsoft-edge';
+                this.log(`Attempting to kill existing browser instances with command: ${cmd}`);
+            }
+            
             exec(cmd, (error, stdout, stderr) => {
                 if (error) {
                     // On macOS, if no Chrome process exists, pkill returns an error
                     // This is not a real error for us, so just log it
-                    this.log(`Note: Kill Chrome returned: ${error.message}`);
+                    this.log(`Note: Kill browser returned: ${error.message}`);
                 }
                 if (stdout) {
-                    this.log(`Kill Chrome stdout: ${stdout}`);
+                    this.log(`Kill browser stdout: ${stdout}`);
                 }
                 if (stderr) {
-                    this.log(`Kill Chrome stderr: ${stderr}`);
+                    this.log(`Kill browser stderr: ${stderr}`);
                 }
-                this.log('Waiting 1s for Chrome to fully terminate...');
+                this.log('Waiting 1s for browser to fully terminate...');
                 setTimeout(resolve, 1000);
             });
         });
     }
 
-    async restartChromeWithDebugging(): Promise<void> {
-        this.log('Attempting to restart Chrome with debugging...');
-        const selection = await vscode.window.showInformationMessage(
-            "Chrome debugging is not enabled. Restart Chrome with debugging?",
-            "Restart Chrome", "Cancel"
-        );
-        if (selection === "Restart Chrome") {
-            return new Promise(async (resolve, reject) => {
-                try {
-                    this.log('User confirmed Chrome restart');
-                    await this.killExistingChrome();
-
-                    const { command, args } = this.getChromeCommand();
-                    this.log(`Starting Chrome with command: ${command} ${args.join(' ')}`);
-                    
-                    // Start Chrome as a detached process
-                    const chromeProcess = spawn(command, args, {
-                        detached: true,
-                        stdio: 'ignore'
-                    });
-
-                    // Unref the process so it can run independently
-                    chromeProcess.unref();
-
-                    this.log('Chrome process started, waiting for debugging to be ready...');
-                    const isReady = await this.waitForChromeToBeReady();
-                    if (isReady) {
-                        this.log('Chrome successfully started with debugging enabled');
-                        vscode.window.showInformationMessage("Chrome restarted with debugging enabled.");
-                        resolve();
-                    } else {
-                        const error = new Error("Chrome did not start with debugging enabled in time");
-                        this.log(error.message);
-                        vscode.window.showErrorMessage(error.message);
-                        reject(error);
-                    }
-                } catch (error) {
-                    const errMsg = `Error during Chrome restart: ${error}`;
-                    this.log(errMsg);
-                    vscode.window.showErrorMessage(errMsg);
-                    reject(error);
-                }
-            });
-        }
-        this.log('User cancelled Chrome restart');
-        throw new Error("User cancelled Chrome restart");
-    }
-
-    private cleanup() {
-        // Remove this method as it's no longer needed
-    }
-
     async connect(): Promise<void> {
-        this.log('Attempting to connect to Chrome...');
+        this.log('Attempting to connect to browser...');
+        
+        // Validate Chrome path before proceeding
+        const isValidPath = await this.validateChromePath();
+        if (!isValidPath) {
+            throw new Error("Invalid browser executable path specified in settings");
+        }
         
         const debuggingEnabled = await this.isChromeDebuggingEnabled();
         if (!debuggingEnabled) {
-            this.log('Chrome debugging not enabled, attempting restart...');
-            await this.restartChromeWithDebugging();
+            this.log('Browser debugging not enabled, checking if we need to restart...');
+            
+            // Get the configuration to check profile
+            const config = vscode.workspace.getConfiguration('m3u8.chrome');
+            const profileDirectory = config.get<string>('profileDirectory', '');
+            
+            // If a specific profile is configured, inform the user they need to start that profile with debugging
+            if (profileDirectory) {
+                const message = `No browser with debugging enabled found for profile "${profileDirectory}". Would you like to start one?`;
+                const selection = await vscode.window.showInformationMessage(
+                    message,
+                    "Start Browser", "Cancel"
+                );
+                
+                if (selection === "Start Browser") {
+                    await this.startBrowserWithDebugging(false); // Start without killing existing browsers
+                } else {
+                    throw new Error(`No browser with debugging enabled found for profile "${profileDirectory}". Please start Chrome with the --remote-debugging-port=9222 flag and the --profile-directory="${profileDirectory}" flag.`);
+                }
+            } else {
+                // No specific profile, ask if user wants to restart
+                await this.restartChromeWithDebugging();
+            }
         }
 
         try {
             this.log('Selecting tab to monitor...');
             const tab = await this.selectTab();
             if (!tab) {
-                throw new Error('No tab selected');
+                this.log('No tab was selected or could be created. Please open a browser tab with content and try again.');
+                throw new Error('No tab selected or could be created');
             }
 
             // Check if we're already monitoring this tab
             if (this.sessions.has(tab.id)) {
-                throw new Error('Already monitoring this tab');
+                this.log(`Already monitoring tab: ${tab.title} (${tab.url})`);
+                throw new Error(`Already monitoring tab: ${tab.title}`);
             }
 
             this.log(`Selected tab: ${tab.title} (${tab.url})`);
@@ -538,7 +775,7 @@ export class ChromeDevToolsService {
             });
             this.log('Network response handler setup complete');
         } catch (error) {
-            const errMsg = `Error connecting to Chrome: ${error}`;
+            const errMsg = `Error connecting to browser: ${error}`;
             this.log(errMsg);
             vscode.window.showErrorMessage(errMsg);
             throw error;
@@ -643,5 +880,81 @@ export class ChromeDevToolsService {
         }
         this.sessions.clear();
         this.responseCache.clear();
+    }
+
+    // Add a new method to start browser without killing existing ones
+    async startBrowserWithDebugging(killExisting: boolean = true): Promise<void> {
+        this.log(`Attempting to start browser with debugging (killExisting=${killExisting})...`);
+        
+        // Validate Chrome path before proceeding
+        const isValidPath = await this.validateChromePath();
+        if (!isValidPath) {
+            throw new Error("Invalid browser executable path specified in settings");
+        }
+        
+        return new Promise(async (resolve, reject) => {
+            try {
+                if (killExisting) {
+                    this.log('Killing existing browser instances...');
+                    await this.killExistingChrome();
+                } else {
+                    this.log('Preserving existing browser instances...');
+                }
+
+                const { command, args } = this.getChromeCommand();
+                this.log(`Starting browser with command: ${command} ${args.join(' ')}`);
+                
+                // Start browser as a detached process
+                const browserProcess = spawn(command, args, {
+                    detached: true,
+                    stdio: 'ignore'
+                });
+
+                // Unref the process so it can run independently
+                browserProcess.unref();
+
+                this.log('Browser process started, waiting for debugging to be ready...');
+                const isReady = await this.waitForChromeToBeReady();
+                if (isReady) {
+                    this.log('Browser successfully started with debugging enabled');
+                    vscode.window.showInformationMessage("Browser started with debugging enabled.");
+                    resolve();
+                } else {
+                    const error = new Error("Browser did not start with debugging enabled in time");
+                    this.log(error.message);
+                    vscode.window.showErrorMessage(error.message);
+                    reject(error);
+                }
+            } catch (error) {
+                const errMsg = `Error during browser start: ${error}`;
+                this.log(errMsg);
+                vscode.window.showErrorMessage(errMsg);
+                reject(error);
+            }
+        });
+    }
+
+    async restartChromeWithDebugging(): Promise<void> {
+        this.log('Attempting to restart browser with debugging...');
+        
+        // Validate Chrome path before proceeding
+        const isValidPath = await this.validateChromePath();
+        if (!isValidPath) {
+            throw new Error("Invalid browser executable path specified in settings");
+        }
+        
+        const selection = await vscode.window.showInformationMessage(
+            "Browser debugging is not enabled. Restart browser with debugging?",
+            "Restart Browser", "Start New Instance", "Cancel"
+        );
+        
+        if (selection === "Restart Browser") {
+            return this.startBrowserWithDebugging(true); // Kill existing and start new
+        } else if (selection === "Start New Instance") {
+            return this.startBrowserWithDebugging(false); // Start new without killing existing
+        }
+        
+        this.log('User cancelled browser restart');
+        throw new Error("User cancelled browser restart");
     }
 } 
